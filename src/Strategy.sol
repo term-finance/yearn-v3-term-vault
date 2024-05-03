@@ -2,10 +2,18 @@
 pragma solidity 0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-// Import interfaces for many popular DeFi projects, or add your own!
-//import "../interfaces/<protocol>/<Interface>.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
+import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
+import {ITermController} from "./interfaces/term/ITermController.sol";
+import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
+import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
+import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
+import {TermAuctionList, TermAuctionListData, PendingOffer} from "./TermAuctionList.sol";
+import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 /**
  * The `TokenizedStrategy` variable can be used to retrieve the strategies
@@ -21,12 +29,268 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
 
 contract Strategy is BaseStrategy {
-    using SafeERC20 for ERC20;
+    using SafeERC20 for IERC20;
+    using RepoTokenList for RepoTokenListData;
+    using TermAuctionList for TermAuctionListData;
+
+    error InvalidTermAuction(address auction);
+    error TimeToMaturityAboveThreshold();
+    error BalanceBelowLiquidityThreshold();
+    
+    ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
+    uint256 public immutable PURCHASE_TOKEN_PRECISION;
+    IERC4626 public immutable YEARN_VAULT;
+
+    ITermController public termController;
+    RepoTokenListData public repoTokenListData;
+    TermAuctionListData public termAuctionListData;
+    uint256 public timeToMaturityThreshold; // seconds
+    uint256 public liquidityThreshold;      // purchase token precision (underlying)
+    uint256 public auctionRateMarkup;       // 1e18 (TODO: check this)
+
+    // These governance functions should have a different role
+    function setTermController(address newTermController) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(address(termController), newTermController);
+        termController = ITermController(newTermController);
+    }
+
+    function setTimeToMaturityThreshold(uint256 newTimeToMaturityThreshold) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(timeToMaturityThreshold, newTimeToMaturityThreshold);
+        timeToMaturityThreshold = newTimeToMaturityThreshold;
+    }
+
+    function setLiquidityThreshold(uint256 newLiquidityThreshold) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitLiquidityThresholdUpdated(liquidityThreshold, newLiquidityThreshold);
+        liquidityThreshold = newLiquidityThreshold;
+    }
+
+    function setAuctionRateMarkup(uint256 newAuctionRateMarkup) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitAuctionRateMarkupUpdated(auctionRateMarkup, newAuctionRateMarkup);
+        auctionRateMarkup = newAuctionRateMarkup;
+    }
+
+    function setCollateralTokenParams(address tokenAddr, uint256 minCollateralRatio) external onlyManagement {
+       // TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(tokenAddr, minCollateralRatio);
+        repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
+    }
+
+    function _removeRedeemAndCalculateWeightedMaturity(
+        address repoToken, 
+        uint256 amount, 
+        uint256 liquidBalance
+    ) private returns (uint256) {
+        uint256 weightedTimeToMaturity = repoTokenListData.simulateWeightedTimeToMaturity(
+            repoToken, amount, PURCHASE_TOKEN_PRECISION, liquidBalance
+        );
+        repoTokenListData.removeAndRedeemMaturedTokens();
+        return weightedTimeToMaturity;
+    }
+
+    function simulateWeightedTimeToMaturity(address repoToken, uint256 amount) external view returns (uint256) {
+        repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+        return repoTokenListData.simulateWeightedTimeToMaturity(
+            repoToken, amount, PURCHASE_TOKEN_PRECISION, _totalLiquidBalance(address(this))
+        );
+    }
+
+    function _totalLiquidBalance(address addr) private view returns (uint256) {
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        return _assetBalance() + underlyingBalance;
+    }
+
+    function _sweepAsset() private {
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        if (underlyingBalance > 0) {
+            YEARN_VAULT.deposit(underlyingBalance, address(this));
+        }
+    }
+
+    function _withdrawAsset(uint256 amount) private {
+        YEARN_VAULT.withdraw(YEARN_VAULT.convertToShares(amount), address(this), address(this));
+    }
+
+    function _assetBalance() private view returns (uint256) {
+        return YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
+    }
+
+    // TODO: reentrancy check
+    function sellRepoToken(address repoToken, uint256 repoTokenAmount) external {
+        require(repoTokenAmount > 0);
+
+        (uint256 auctionRate, uint256 redemptionTimestamp) = repoTokenListData.validateAndInsertRepoToken(
+            ITermRepoToken(repoToken),
+            termController,
+            address(asset)
+        );
+
+        _sweepAsset();
+
+        uint256 liquidBalance = _totalLiquidBalance(address(this));
+        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+        uint256 repoTokenAmountInBaseAssetPrecision = 
+            (ITermRepoToken(repoToken).redemptionValue() * repoTokenAmount * PURCHASE_TOKEN_PRECISION) / 
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+        uint256 proceeds = RepoTokenUtils.calculatePresentValue(
+            repoTokenAmountInBaseAssetPrecision, PURCHASE_TOKEN_PRECISION, redemptionTimestamp, auctionRate
+        );
+        uint256 resultingTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+            repoToken, repoTokenAmount, _totalLiquidBalance(address(this)) - proceeds
+        );
+
+        if (resultingTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+
+        liquidBalance -= proceeds;
+
+        if (liquidBalance < liquidityThreshold) {
+            revert BalanceBelowLiquidityThreshold();
+        }
+
+        // withdraw from underlying vault
+        _withdrawAsset(proceeds);
+        
+        IERC20(repoToken).safeTransferFrom(msg.sender, address(this), repoTokenAmount);
+        IERC20(asset).safeTransfer(msg.sender, proceeds);
+    }
+
+    function deleteAuctionOffer(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
+        if (!termController.isTermDeployed(termAuction)) {
+            revert InvalidTermAuction(termAuction);
+        }
+
+        ITermAuction auction = ITermAuction(termAuction);
+        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(auction.termAuctionOfferLocker());
+
+        offerLocker.unlockOffers(offerIds);
+
+        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
+
+        _sweepAsset();
+    }
+
+    function submitAuctionOffer(
+        address termAuction,
+        address repoToken,
+        bytes32 idHash,
+        bytes32 offerPriceHash,
+        uint256 purchaseTokenAmount
+    ) external onlyManagement returns (bytes32[] memory offerIds) {
+        require(purchaseTokenAmount > 0);
+
+        if (!termController.isTermDeployed(termAuction)) {
+            revert InvalidTermAuction(termAuction);
+        }
+
+        ITermAuction auction = ITermAuction(termAuction);
+
+        require(auction.termRepoId() == ITermRepoToken(repoToken).termRepoId());
+
+        // validate purchase token and min collateral ratio
+        repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+
+        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(auction.termAuctionOfferLocker());
+        require(
+            block.timestamp > offerLocker.auctionStartTime()
+                || block.timestamp < auction.auctionEndTime(),
+            "Auction not open"
+        );
+
+        _sweepAsset();  //@dev sweep to ensure liquid balances up to date
+
+        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+        uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
+            repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
+        );
+        uint256 liquidBalance = _totalLiquidBalance(address(this));
+        uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+            repoToken, offerAmount, liquidBalance - offerAmount
+        );
+
+        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+
+        if ((liquidBalance - purchaseTokenAmount) < liquidityThreshold) {
+            revert BalanceBelowLiquidityThreshold();
+        }
+
+        ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
+
+        offer.id = idHash;
+        offer.offeror = address(this);
+        offer.offerPriceHash = offerPriceHash;
+        offer.amount = purchaseTokenAmount;
+        offer.purchaseToken = address(asset);
+
+        offerIds = _submitOffer(auction, offerLocker, offer, repoToken);
+    }
+
+    function _submitOffer(
+        ITermAuction auction,
+        ITermAuctionOfferLocker offerLocker,
+        ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer,
+        address repoToken
+    ) private returns (bytes32[] memory offerIds) {
+        ITermRepoServicer repoServicer = ITermRepoServicer(offerLocker.termRepoServicer());
+
+        ITermAuctionOfferLocker.TermAuctionOfferSubmission[] memory offerSubmissions = 
+            new ITermAuctionOfferLocker.TermAuctionOfferSubmission[](1);
+        offerSubmissions[0] = offer;
+
+        _withdrawAsset(offer.amount);
+
+        ERC20(asset).approve(address(repoServicer.termRepoLocker()), offer.amount);
+
+        offerIds = offerLocker.lockOffers(offerSubmissions);
+
+        require(offerIds.length > 0);
+
+        if (termAuctionListData.offers[offerIds[0]].offerId == bytes32(0)) {
+            // new offer
+            termAuctionListData.insertPending(PendingOffer({
+                offerId: offerIds[0],
+                repoToken: repoToken,
+                offerAmount: offer.amount,
+                termAuction: auction,
+                offerLocker: offerLocker
+            }));
+        } else {
+            // edit offer, overwrite existing
+            termAuctionListData.offers[offerIds[0]] = PendingOffer({
+                offerId: offerIds[0],
+                repoToken: repoToken,
+                offerAmount: offer.amount,
+                termAuction: auction,
+                offerLocker: offerLocker
+            });
+        }
+    }
+
+    function auctionClosed() external {
+        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
+
+        _sweepAsset();
+    }
+
+    function totalAssetValue() internal view returns (uint256 totalValue) {
+        return _totalLiquidBalance(address(this)) + 
+            repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION) + 
+            termAuctionListData.getPresentValue(repoTokenListData);
+    }
 
     constructor(
         address _asset,
-        string memory _name
-    ) BaseStrategy(_asset, _name) {}
+        string memory _name,
+        address _yearnVault,
+        address _eventEmitter
+    ) BaseStrategy(_asset, _name) {
+        YEARN_VAULT = IERC4626(_yearnVault);
+        TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
+        PURCHASE_TOKEN_PRECISION = 10**ERC20(asset).decimals();
+
+        IERC20(_asset).safeApprove(_yearnVault, type(uint256).max);
+    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
