@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+import "forge-std/console.sol";
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -36,20 +37,22 @@ contract Strategy is BaseStrategy {
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
+    error InsufficientLiquidBalance(uint256 have, uint256 want);
     
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
     IERC4626 public immutable YEARN_VAULT;
 
     ITermController public termController;
-    RepoTokenListData public repoTokenListData;
-    TermAuctionListData public termAuctionListData;
+    RepoTokenListData internal repoTokenListData;
+    TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
     uint256 public liquidityThreshold;      // purchase token precision (underlying)
     uint256 public auctionRateMarkup;       // 1e18 (TODO: check this)
 
     // These governance functions should have a different role
     function setTermController(address newTermController) external onlyManagement {
+        require(newTermController != address(0));
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(address(termController), newTermController);
         termController = ITermController(newTermController);
     }
@@ -70,8 +73,16 @@ contract Strategy is BaseStrategy {
     }
 
     function setCollateralTokenParams(address tokenAddr, uint256 minCollateralRatio) external onlyManagement {
-       // TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(tokenAddr, minCollateralRatio);
+        TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(tokenAddr, minCollateralRatio);
         repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
+    }
+
+    function repoTokenHoldings() external view returns (address[] memory) {
+        return repoTokenListData.holdings();
+    }
+
+    function pendingOffers() external view returns (bytes32[] memory) {
+        return termAuctionListData.pendingOffers();
     }
 
     function _removeRedeemAndCalculateWeightedMaturity(
@@ -79,18 +90,37 @@ contract Strategy is BaseStrategy {
         uint256 amount, 
         uint256 liquidBalance
     ) private returns (uint256) {
-        uint256 weightedTimeToMaturity = repoTokenListData.simulateWeightedTimeToMaturity(
+        return repoTokenListData.simulateWeightedTimeToMaturity(
             repoToken, amount, PURCHASE_TOKEN_PRECISION, liquidBalance
         );
-        repoTokenListData.removeAndRedeemMaturedTokens();
-        return weightedTimeToMaturity;
     }
 
     function simulateWeightedTimeToMaturity(address repoToken, uint256 amount) external view returns (uint256) {
-        repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+        // do not validate if we are simulating with existing repo tokens
+        if (repoToken != address(0)) {
+            repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+        }
         return repoTokenListData.simulateWeightedTimeToMaturity(
             repoToken, amount, PURCHASE_TOKEN_PRECISION, _totalLiquidBalance(address(this))
         );
+    }
+
+    function calculateRepoTokenPresentValue(
+        address repoToken, 
+        uint256 auctionRate, 
+        uint256 amount
+    ) external view returns (uint256) {
+        (uint256 redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
+        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+        uint256 repoTokenAmountInBaseAssetPrecision = 
+            (ITermRepoToken(repoToken).redemptionValue() * amount * PURCHASE_TOKEN_PRECISION) / 
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+        return RepoTokenUtils.calculatePresentValue(
+            repoTokenAmountInBaseAssetPrecision, 
+            PURCHASE_TOKEN_PRECISION, 
+            redemptionTimestamp, 
+            auctionRate
+        );  
     }
 
     function _totalLiquidBalance(address addr) private view returns (uint256) {
@@ -98,10 +128,19 @@ contract Strategy is BaseStrategy {
         return _assetBalance() + underlyingBalance;
     }
 
-    function _sweepAsset() private {
+    function _sweepAssetAndRedeemRepoTokens(uint256 liquidAmountRequired) private {
+        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
+        repoTokenListData.removeAndRedeemMaturedTokens();
+
         uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        if (underlyingBalance > 0) {
-            YEARN_VAULT.deposit(underlyingBalance, address(this));
+        if (underlyingBalance > liquidAmountRequired) {
+            unchecked {
+                YEARN_VAULT.deposit(underlyingBalance - liquidAmountRequired, address(this));
+            }
+        } else if (underlyingBalance < liquidAmountRequired) {
+            unchecked {
+                _withdrawAsset(liquidAmountRequired - underlyingBalance);
+            }
         }
     }
 
@@ -123,18 +162,28 @@ contract Strategy is BaseStrategy {
             address(asset)
         );
 
-        _sweepAsset();
+        _sweepAssetAndRedeemRepoTokens(0);
 
         uint256 liquidBalance = _totalLiquidBalance(address(this));
+        require(liquidBalance > 0);
+
         uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
         uint256 repoTokenAmountInBaseAssetPrecision = 
             (ITermRepoToken(repoToken).redemptionValue() * repoTokenAmount * PURCHASE_TOKEN_PRECISION) / 
             (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
         uint256 proceeds = RepoTokenUtils.calculatePresentValue(
-            repoTokenAmountInBaseAssetPrecision, PURCHASE_TOKEN_PRECISION, redemptionTimestamp, auctionRate
+            repoTokenAmountInBaseAssetPrecision, 
+            PURCHASE_TOKEN_PRECISION, 
+            redemptionTimestamp, 
+            auctionRate + auctionRateMarkup
         );
+
+        if (liquidBalance < proceeds) {
+            revert InsufficientLiquidBalance(liquidBalance, proceeds);
+        }
+
         uint256 resultingTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
-            repoToken, repoTokenAmount, _totalLiquidBalance(address(this)) - proceeds
+            repoToken, repoTokenAmount, liquidBalance - proceeds
         );
 
         if (resultingTimeToMaturity > timeToMaturityThreshold) {
@@ -153,8 +202,8 @@ contract Strategy is BaseStrategy {
         IERC20(repoToken).safeTransferFrom(msg.sender, address(this), repoTokenAmount);
         IERC20(asset).safeTransfer(msg.sender, proceeds);
     }
-
-    function deleteAuctionOffer(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
+    
+    function deleteAuctionOffers(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
         if (!termController.isTermDeployed(termAuction)) {
             revert InvalidTermAuction(termAuction);
         }
@@ -166,7 +215,7 @@ contract Strategy is BaseStrategy {
 
         termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
 
-        _sweepAsset();
+        _sweepAssetAndRedeemRepoTokens(0);
     }
 
     function submitAuctionOffer(
@@ -196,15 +245,20 @@ contract Strategy is BaseStrategy {
             "Auction not open"
         );
 
-        _sweepAsset();  //@dev sweep to ensure liquid balances up to date
+        _sweepAssetAndRedeemRepoTokens(0);  //@dev sweep to ensure liquid balances up to date
 
         uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
         uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
             repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
         );
         uint256 liquidBalance = _totalLiquidBalance(address(this));
+
+        if (liquidBalance < purchaseTokenAmount) {
+            revert InsufficientLiquidBalance(liquidBalance, purchaseTokenAmount);
+        }
+
         uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
-            repoToken, offerAmount, liquidBalance - offerAmount
+            repoToken, offerAmount, liquidBalance - purchaseTokenAmount
         );
 
         if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
@@ -268,12 +322,18 @@ contract Strategy is BaseStrategy {
     }
 
     function auctionClosed() external {
-        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
-
-        _sweepAsset();
+        _sweepAssetAndRedeemRepoTokens(0);
     }
 
-    function totalAssetValue() internal view returns (uint256 totalValue) {
+    function totalAssetValue() external view returns (uint256) {
+        return _totalAssetValue();
+    }
+
+    function totalLiquidBalance() external view returns (uint256) {
+        return _totalLiquidBalance(address(this));
+    }
+
+    function _totalAssetValue() internal view returns (uint256 totalValue) {
         return _totalLiquidBalance(address(this)) + 
             repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION) + 
             termAuctionListData.getPresentValue(repoTokenListData);
@@ -307,10 +367,8 @@ contract Strategy is BaseStrategy {
      * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override {
-        // TODO: implement deposit logic EX:
-        //
-        //      lendingPool.deposit(address(asset), _amount ,0);
+    function _deployFunds(uint256 _amount) internal override { 
+        _sweepAssetAndRedeemRepoTokens(0);
     }
 
     /**
@@ -334,10 +392,8 @@ contract Strategy is BaseStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-    function _freeFunds(uint256 _amount) internal override {
-        // TODO: implement withdraw logic EX:
-        //
-        //      lendingPool.withdraw(address(asset), _amount);
+    function _freeFunds(uint256 _amount) internal override { 
+        _sweepAssetAndRedeemRepoTokens(_amount);
     }
 
     /**
@@ -367,14 +423,8 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _totalAssets)
     {
-        // TODO: Implement harvesting logic and accurate accounting EX:
-        //
-        //      if(!TokenizedStrategy.isShutdown()) {
-        //          _claimAndSellRewards();
-        //      }
-        //      _totalAssets = aToken.balanceOf(address(this)) + asset.balanceOf(address(this));
-        //
-        _totalAssets = asset.balanceOf(address(this));
+        _sweepAssetAndRedeemRepoTokens(0);
+        return _totalAssetValue();
     }
 
     /*//////////////////////////////////////////////////////////////

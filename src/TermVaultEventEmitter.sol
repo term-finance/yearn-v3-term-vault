@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgrad
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract TermListingEventEmitter is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ITermVaultEvents {
+contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ITermVaultEvents {
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DEVOPS_ROLE = keccak256("DEVOPS_ROLE");
@@ -35,20 +35,24 @@ contract TermListingEventEmitter is Initializable, UUPSUpgradeable, AccessContro
         _grantRole(VAULT_CONTRACT, vaultContract);
     }
 
-    function emitTermControllerUpdated(address oldController, address newController) external {
+    function emitTermControllerUpdated(address oldController, address newController) external onlyRole(VAULT_CONTRACT) {
         emit TermControllerUpdated(oldController, newController);
     }
 
-    function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external {
+    function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
         emit TimeToMaturityThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external {
+    function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
         emit LiquidityThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external {
+    function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external onlyRole(VAULT_CONTRACT) {
         emit AuctionRateMarkupUpdated(oldMarkup, newMarkup);
+    }
+
+    function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external onlyRole(VAULT_CONTRACT) {
+        emit MinCollateralRatioUpdated(collateral, minCollateralRatio);
     }
 
     // ========================================================================

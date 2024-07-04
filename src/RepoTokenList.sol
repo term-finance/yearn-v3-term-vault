@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
-import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
+import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -38,6 +39,28 @@ library RepoTokenList {
         return listData.nodes[current].next;
     }
 
+    function _count(RepoTokenListData storage listData) private view returns (uint256 count) {
+        if (listData.head == NULL_NODE) return 0;
+        address current = listData.head;
+        while (current != NULL_NODE) {
+            count++;
+            current = _getNext(listData, current);
+        }
+    }
+
+    function holdings(RepoTokenListData storage listData) internal view returns (address[] memory holdings) {
+        uint256 count = _count(listData);
+        if (count > 0) {
+            holdings = new address[](count);
+            uint256 i;
+            address current = listData.head;
+            while (current != NULL_NODE) {
+                holdings[i++] = current;
+                current = _getNext(listData, current);
+            } 
+        }   
+    }
+
     function simulateWeightedTimeToMaturity(
         RepoTokenListData storage listData, 
         address repoToken, 
@@ -47,28 +70,28 @@ library RepoTokenList {
     ) internal view returns (uint256) {
         if (listData.head == NULL_NODE) return 0;
 
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-
         uint256 cumulativeWeightedTimeToMaturity;  // in seconds
         uint256 cumulativeRepoTokenAmount;  // in purchase token precision
         address current = listData.head;
         bool found;
         while (current != NULL_NODE) {
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
-
-            if (repoToken == current) {
-                repoTokenBalance += repoTokenAmount;
-                found = true;
-            }
-
-            uint256 repoTokenBalanceInBaseAssetPrecision = 
-                (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
 
             if (repoTokenBalance > 0) {
+                uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
+                uint256 repoTokenPrecision = 10**ERC20(current).decimals();
+
+                if (repoToken == current) {
+                    repoTokenBalance += repoTokenAmount;
+                    found = true;
+                }
+
+                uint256 repoTokenBalanceInBaseAssetPrecision = 
+                    (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
+                    (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+
+                uint256 currentMaturity = _getRepoTokenMaturity(current);
+
                 if (currentMaturity > block.timestamp) {
                     uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, current);
                     // Not matured yet
@@ -83,13 +106,14 @@ library RepoTokenList {
 
         /// @dev token is not found in the list (i.e. called from view function)
         if (!found && repoToken != address(0)) {
-            uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
             uint256 repoTokenAmountInBaseAssetPrecision =
                 (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / 
                 (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
 
             cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
-            uint256 maturity = _getRepoTokenMaturity(current);
+            uint256 maturity = _getRepoTokenMaturity(repoToken);
             if (maturity > block.timestamp) {
                 uint256 timeToMaturity = _getRepoTokenTimeToMaturity(maturity, repoToken);
                 cumulativeWeightedTimeToMaturity += 
@@ -113,22 +137,35 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
-            if (_getRepoTokenMaturity(current) >= block.timestamp) {
-                next = _getNext(listData, current);
-
-                if (current == listData.head) {
-                    listData.head = next;
-                }
-                
-                listData.nodes[prev].next = next;
-                delete listData.nodes[current];
-                delete listData.auctionRates[current];
-
+            if (_getRepoTokenMaturity(current) < block.timestamp) {
+                bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
                 if (repoTokenBalance > 0) {
                     (, , address termRepoServicer,) = ITermRepoToken(current).config();
-                    ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(address(this), repoTokenBalance);
+                    try ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(
+                        address(this), 
+                        repoTokenBalance
+                    ) {
+                        removeMaturedToken = true;
+                    } catch {
+                       // redemption failed, do not remove token from the list
+                    }
+                } else {
+                    // already redeemed
+                    removeMaturedToken = true;
+                }
+
+                next = _getNext(listData, current);
+
+                if (removeMaturedToken) {
+                    if (current == listData.head) {
+                        listData.head = next;
+                    }
+                    
+                    listData.nodes[prev].next = next;
+                    delete listData.nodes[current];
+                    delete listData.auctionRates[current];
                 }
             } else {
                 /// @dev early exit because list is sorted
@@ -141,13 +178,15 @@ library RepoTokenList {
     }
 
     function _auctionRate(ITermController termController, ITermRepoToken repoToken) private view returns (uint256) {
-        TermAuctionResults memory results = termController.getTermAuctionResults(repoToken.termRepoId());
+        (AuctionMetadata[] memory auctionMetadata, ) = termController.getTermAuctionResults(repoToken.termRepoId());
 
-        uint256 len = results.auctionMetadata.length;
+        uint256 len = auctionMetadata.length;
 
-        require(len > 0);
+        if (len == 0) {
+            revert InvalidRepoToken(address(repoToken));
+        }
 
-        return results.auctionMetadata[len - 1].auctionClearingRate;
+        return auctionMetadata[len - 1].auctionClearingRate;
     }
 
     function validateRepoToken(
@@ -231,6 +270,11 @@ library RepoTokenList {
         address prev;
         while (current != NULL_NODE) {
 
+            // already in list
+            if (current == repoToken) {
+                break;
+            }
+
             uint256 currentMaturity = _getRepoTokenMaturity(current);
             uint256 maturityToInsert = _getRepoTokenMaturity(repoToken);
 
@@ -244,8 +288,15 @@ library RepoTokenList {
                 break;
             }
 
+            address next = _getNext(listData, current);
+            
+            if (next == NULL_NODE) {
+                listData.nodes[current].next = repoToken;
+                break;
+            }
+
             prev = current;
-            current = _getNext(listData, current);
+            current = next;
         }
     }
 
