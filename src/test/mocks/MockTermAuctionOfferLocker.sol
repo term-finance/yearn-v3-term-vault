@@ -68,7 +68,9 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
                 // update locked amount
                 offer.amount = submission.amount;
             } else {
-                offer.id = submission.id;
+                bytes32 offerId = keccak256(abi.encodePacked(submission.id,msg.sender,address(this)));
+
+                offer.id = offerId;
                 offer.offeror = submission.offeror;
                 offer.offerPriceHash = submission.offerPriceHash;
                 offer.amount = submission.amount;

@@ -1,6 +1,6 @@
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermAuction} from "./mocks/MockTermAuction.sol";
@@ -45,24 +45,25 @@ contract TestUSDCSubmitOffer is Setup {
         initialState.totalLiquidBalance = termStrategy.totalLiquidBalance();
     }
 
-    function _submitOffer(bytes32 offerId, uint256 offerAmount) private { 
+    function _submitOffer(bytes32 idHash, uint256 offerAmount) private returns (bytes32) { 
         // test: only management can submit offers
         vm.expectRevert("!management");
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), offerId, bytes32("test price"), offerAmount
+            address(repoToken1WeekAuction), address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
         vm.prank(management);
         offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), offerId, bytes32("test price"), offerAmount
+            address(repoToken1WeekAuction), address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
         assertEq(offerIds.length, 1);
-        assertEq(offerIds[0], offerId);
+
+        return offerIds[0];
     }
 
     function testSubmitOffer() public {       
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        _submitOffer(bytes32("offer id hash 1"), 1e6);
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
@@ -70,14 +71,15 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testEditOffer() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        bytes32 idHash1 = bytes32("offer id hash 1");
+        bytes32 offerId1 = _submitOffer(idHash1, 1e6);
 
         // TODO: fuzz this
         uint256 offerAmount = 4e6;
 
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), bytes32("offer id 1"), bytes32("test price"), offerAmount
+            address(repoToken1WeekAuction), address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
         );        
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);
@@ -86,11 +88,11 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testDeleteOffers() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 
         bytes32[] memory offerIds = new bytes32[](1);
 
-        offerIds[0] = bytes32("offer id 1");
+        offerIds[0] = offerId1;
 
         vm.expectRevert("!management");
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
@@ -126,18 +128,21 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testCompleteAuctionSuccessFull() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+        uint256 fillAmount = 1e6;
 
         bytes32[] memory offerIds = new bytes32[](1);
-        offerIds[0] = bytes32("offer id 1");
+        offerIds[0] = offerId1;
         uint256[] memory fillAmounts = new uint256[](1);
-        fillAmounts[0] = 1e6;
+        fillAmounts[0] = fillAmount;
         uint256[] memory repoTokenAmounts = new uint256[](1);
         repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
-            1e6, repoToken1Week, TEST_REPO_TOKEN_RATE
+            fillAmount, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        //console2.log("repoTokenAmounts[0]", repoTokenAmounts[0]);
 
         // test: asset value should equal to initial asset value (liquid + pending offers)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -164,17 +169,18 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testCompleteAuctionSuccessPartial() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id 1"), 1e6);
+        uint256 fillAmount = 0.5e6;
 
         bytes32[] memory offerIds = new bytes32[](1);
-        offerIds[0] = bytes32("offer id 1");
+        offerIds[0] = offerId1;
         uint256[] memory fillAmounts = new uint256[](1);
 
         // test: 50% filled
-        fillAmounts[0] = 0.5e6;
+        fillAmounts[0] = fillAmount;
         uint256[] memory repoTokenAmounts = new uint256[](1);
         repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
-            0.5e6, repoToken1Week, TEST_REPO_TOKEN_RATE
+            fillAmount, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
@@ -204,7 +210,7 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testCompleteAuctionCanceled() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 
         repoToken1WeekAuction.auctionCanceled();    
 
@@ -217,8 +223,8 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testMultipleOffers() public {
-        _submitOffer(bytes32("offer id 1"), 1e6);
-        _submitOffer(bytes32("offer id 2"), 5e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), 5e6);
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 6e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
@@ -227,7 +233,55 @@ contract TestUSDCSubmitOffer is Setup {
         bytes32[] memory offers = termStrategy.pendingOffers();
 
         assertEq(offers.length, 2);
-        assertEq(offers[0], bytes32("offer id 2"));
-        assertEq(offers[1], bytes32("offer id 1"));
+        assertEq(offers[0], offerId2);
+        assertEq(offers[1], offerId1);
+    }
+
+    function testMultipleOffersFillAndNoFill() public {
+        uint256 offer1Amount = 1e6;
+        uint256 offer2Amount = 5e6;
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), offer1Amount);
+        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), offer2Amount);
+
+        bytes32[] memory offerIds = new bytes32[](2);
+        offerIds[0] = offerId1;
+        offerIds[1] = offerId2;
+        uint256[] memory fillAmounts = new uint256[](2);
+
+        // test: offer 1 filled, offer 2 not filled
+        fillAmounts[0] = offer1Amount;
+        fillAmounts[1] = 0;
+        uint256[] memory repoTokenAmounts = new uint256[](2);
+        repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
+            offer1Amount, repoToken1Week, TEST_REPO_TOKEN_RATE
+        );
+        repoTokenAmounts[1] = 0;
+
+        repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        // test: asset value should equal to initial asset value (liquid + pending offers)
+        assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);        
+    }
+
+    function testEditOfferTotalGreaterThanCurrentLiquidity() public {
+        bytes32 idHash1 = bytes32("offer id hash 1");
+        bytes32 offerId1 = _submitOffer(idHash1, 50e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 50e6);
+
+        _submitOffer(idHash1, 100e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 0);        
+    }
+
+    function testEditOfferTotalLessThanCurrentLiquidity() public {
+        bytes32 idHash1 = bytes32("offer id hash 1");
+        bytes32 offerId1 = _submitOffer(idHash1, 100e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 0);
+
+        _submitOffer(idHash1, 50e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 50e6); 
     }
 }
