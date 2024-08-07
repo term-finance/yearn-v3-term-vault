@@ -297,6 +297,7 @@ library RepoTokenList {
                 break;
             }
 
+            // Move to the next node
             prev = current;
             current = next;
         }        
@@ -446,6 +447,7 @@ library RepoTokenList {
                 break;
             }
 
+            // Move to the next node
             prev = current;
             current = next;
         }
