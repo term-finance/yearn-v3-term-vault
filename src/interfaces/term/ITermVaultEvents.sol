@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity 0.8.18;
 
 interface ITermVaultEvents {
     event TermControllerUpdated(address oldController, address newController);
 
     event TimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);
 
-    event LiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);
+    event liquidityReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold);
 
-    event AuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
+    event discountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
 
     event MinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio);
 
@@ -27,9 +27,9 @@ interface ITermVaultEvents {
 
     function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external;
 
-    function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external;
+    function emitliquidityReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold) external;
 
-    function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external;
+    function emitdiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external;
 
     function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external;
 
