@@ -59,6 +59,7 @@ contract TestUSDCSubmitOffer is Setup {
         );        
 
         assertEq(offerIds.length, 1);
+        assertEq(termStrategy.pendingOffer(offerIds[0]).offerAmount, offerAmount);
 
         return offerIds[0];
     }

@@ -294,6 +294,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return termAuctionListData.pendingOffers();
     }
 
+    function pendingOffer(bytes32 offerId) external view returns (PendingOffer memory) {
+        return termAuctionListData.offers[offerId];
+    }
+
     /**
      * @notice Calculate the concentration ratio of a specific repoToken in the strategy
      * @param repoToken The address of the repoToken to calculate the concentration for

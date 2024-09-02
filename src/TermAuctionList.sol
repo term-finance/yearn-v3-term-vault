@@ -153,6 +153,9 @@ library TermAuctionList {
      * It updates the `next` pointers and the head of the list to ensure the new offer is correctly linked.
      */
     function insertPending(TermAuctionListData storage listData, bytes32 offerId, PendingOffer memory pendingOffer) internal {
+        /// @dev make sure we don't insert the same offerId twice
+        require(listData.offers[offerId].repoToken == address(0));
+
         bytes32 current = listData.head;
 
         if (current != NULL_NODE) {
