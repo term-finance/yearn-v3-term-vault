@@ -440,10 +440,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenHoldingValue(
         address repoToken
     ) public view returns (uint256) {
+        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[address(asset)] == 0 ? 1e18 : repoRedemptionHaircut[address(asset)];
         return
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
-                repoToken
+                repoToken,
+                repoRedemptionHaircutMantissa
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
@@ -498,11 +500,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and the present value of all pending offers to calculate the total asset value.
      */
     function _totalAssetValue(uint256 liquidBalance) internal view returns (uint256 totalValue) {
+        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[address(asset)] == 0 ? 1e18 : repoRedemptionHaircut[address(asset)];
         return
             liquidBalance +
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
-                address(0)
+                address(0),
+                repoRedemptionHaircutMantissa
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,

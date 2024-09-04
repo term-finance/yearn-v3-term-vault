@@ -187,7 +187,8 @@ library RepoTokenList {
     function getPresentValue(
         RepoTokenListData storage listData, 
         uint256 purchaseTokenPrecision,
-        address repoTokenToMatch
+        address repoTokenToMatch,
+        uint256 repoRedemptionHaircutMantissa
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
@@ -210,8 +211,8 @@ library RepoTokenList {
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision
             uint256 repoTokenBalanceInBaseAssetPrecision = 
-                (ITermRepoToken(current).redemptionValue() * repoTokenBalance * purchaseTokenPrecision) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+                (ITermRepoToken(current).redemptionValue() * repoRedemptionHaircutMantissa * repoTokenBalance * purchaseTokenPrecision) / 
+                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION * 1e18);
 
             // Calculate present value based on maturity
             if (currentMaturity > block.timestamp) {
