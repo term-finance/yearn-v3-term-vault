@@ -4,13 +4,16 @@ pragma solidity ^0.8.18;
 import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
+import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
 /**
  * @title TermDiscountRateAdapter
  * @notice Adapter contract to retrieve discount rates for Term repo tokens
  * @dev This contract implements the ITermDiscountRateAdapter interface and interacts with the Term Controller
  */
-contract TermDiscountRateAdapter is ITermDiscountRateAdapter {
+contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControlUpgradeable {
+    bytes32 public constant DEVOPS_ROLE = bytes32(keccak256("DEVOPS_ROLE"));
+
     /// @notice The Term Controller contract
     ITermController public immutable TERM_CONTROLLER;
     mapping(address => mapping (bytes32 => bool)) public rateInvalid;
@@ -19,8 +22,9 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter {
      * @notice Constructor to initialize the TermDiscountRateAdapter
      * @param termController_ The address of the Term Controller contract
      */
-    constructor(address termController_) {
+    constructor(address termController_, address devopsWallet_) {
         TERM_CONTROLLER = ITermController(termController_);
+        _grantRole(DEVOPS_ROLE, devopsWallet_);
     }
 
     /**
@@ -50,5 +54,9 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter {
         require(!rateInvalid[repoToken][auctionMetadata[0].termAuctionId], "Most recent auction rate is invalid");
 
         return auctionMetadata[0].auctionClearingRate;
+    }
+
+    function markRateInvalid(address repoToken, bytes32 termAuctionId) external onlyRole(DEVOPS_ROLE) {
+        rateInvalid[repoToken][termAuctionId] = true;
     }
 }
