@@ -65,7 +65,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     uint256 public discountRateMarkup; // 1e18 (TODO: check this)
     uint256 public repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) public repoTokenBlacklist;
-    mapping(address => uint256) public repoRedemptionHaircut;
+
     bool public depositLock;
 
     modifier notBlacklisted(address repoToken) {
@@ -128,15 +128,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
         prevTermController = ITermController(current);
         currTermController = ITermController(newTermController);
-    }
-
-    /**
-     * @notice Set the repo redemption haircut
-     * @param repoToken The address of the repo token
-     * @param haircut The repo redemption haircut in 18 decimals
-     */
-    function setRepoRedemptionHaircut(address repoToken, uint256 haircut) external onlyManagement {
-        repoRedemptionHaircut[repoToken] = haircut;
     }
 
     /**
@@ -363,7 +354,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
 
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
-            uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
+            uint256 repoRedemptionHaircutMantissa = discountRateAdapter.repoRedemptionHaircut(repoToken) == 0 ? 1e18 : discountRateAdapter.repoRedemptionHaircut(repoToken);
             uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
             repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
                 repoToken
@@ -413,7 +404,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         (uint256 redemptionTimestamp, , , ) = ITermRepoToken(repoToken)
             .config();
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
+        uint256 repoRedemptionHaircutMantissa = discountRateAdapter.repoRedemptionHaircut(repoToken) == 0 ? 1e18 : discountRateAdapter.repoRedemptionHaircut(repoToken);
         uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
             .redemptionValue() * repoRedemptionHaircutMantissa *
             amount *
@@ -440,7 +431,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenHoldingValue(
         address repoToken
     ) public view returns (uint256) {
-        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[address(asset)] == 0 ? 1e18 : repoRedemptionHaircut[address(asset)];
+        uint256 repoRedemptionHaircutMantissa = discountRateAdapter.repoRedemptionHaircut(address(asset)) == 0 ? 1e18 : discountRateAdapter.repoRedemptionHaircut(address(asset));
         return
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
@@ -500,7 +491,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and the present value of all pending offers to calculate the total asset value.
      */
     function _totalAssetValue(uint256 liquidBalance) internal view returns (uint256 totalValue) {
-        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[address(asset)] == 0 ? 1e18 : repoRedemptionHaircut[address(asset)];
+        uint256 repoRedemptionHaircutMantissa = discountRateAdapter.repoRedemptionHaircut(address(asset)) == 0 ? 1e18 : discountRateAdapter.repoRedemptionHaircut(address(asset));
         return
             liquidBalance +
             repoTokenListData.getPresentValue(
@@ -1042,7 +1033,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Calculate the repoToken amount in base asset precision
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
+        uint256 repoRedemptionHaircutMantissa = discountRateAdapter.repoRedemptionHaircut(repoToken) == 0 ? 1e18 : discountRateAdapter.repoRedemptionHaircut(repoToken);
         uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
             .redemptionValue() * repoRedemptionHaircutMantissa *
             repoTokenAmount *
