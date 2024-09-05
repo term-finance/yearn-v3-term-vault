@@ -13,6 +13,7 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 contract TermDiscountRateAdapter is ITermDiscountRateAdapter {
     /// @notice The Term Controller contract
     ITermController public immutable TERM_CONTROLLER;
+    mapping(address => mapping (bytes32 => bool)) public rateInvalid;
 
     /**
      * @notice Constructor to initialize the TermDiscountRateAdapter
@@ -33,8 +34,21 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter {
         (AuctionMetadata[] memory auctionMetadata, ) = TERM_CONTROLLER.getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
 
         uint256 len = auctionMetadata.length;
-        require(len > 0);
+        require(len > 0, "No auctions found");
 
-        return auctionMetadata[len - 1].auctionClearingRate;
+        if (len > 1) {
+            if ((block.timestamp - auctionMetadata[len - 1].auctionClearingBlockTimestamp) < 30 minutes) {
+                uint256 i = 0;
+                while (!rateInvalid[repoToken][auctionMetadata[len - 1].termAuctionId]) {
+                    i--;
+                    require(i >= 0, "No valid auction rate found");
+                }
+                return auctionMetadata[i].auctionClearingRate;
+            }
+        }
+
+        require(!rateInvalid[repoToken][auctionMetadata[0].termAuctionId], "Most recent auction rate is invalid");
+
+        return auctionMetadata[0].auctionClearingRate;
     }
 }
