@@ -32,6 +32,7 @@ struct TermAuctionListNode {
 
 struct TermAuctionListData {
     bytes32 head;
+    uint16 size;
     mapping(bytes32 => TermAuctionListNode) nodes;
     mapping(bytes32 => PendingOffer) offers;
 }
@@ -86,6 +87,41 @@ library TermAuctionList {
             i++;
             current = _getNext(listData, current);
         }
+    }
+
+    /**
+     * @notice Checks if repo token has been seen before during iteration
+     * @param repoTokensSeen The array of repoTokens that have been marked as seen
+     * @param repoToken The address of the repoToken to be marked as seen
+     *
+     * @dev This function iterates through the `offers` array and sets the `isRepoTokenSeen` flag to `true`
+     * for the specified `repoToken`. This helps to avoid double-counting or reprocessing the same repoToken.
+     */
+    function _hasRepoTokenBeenSeen(address[] memory repoTokensSeen, address repoToken) private view returns(bool ) {
+        uint256 i;
+        while (repoTokensSeen[i] != address(0)) {
+            if (repoTokensSeen[i] == repoToken) {
+                return true;
+            }
+            i++;
+        }
+        return false;
+    }
+
+    /**
+     * @notice Marks a specific repoToken as seen within offers array
+     * @param repoTokensSeen The array of repoTokens that have been marked as seen
+     * @param repoToken The address of the repoToken to be marked as seen
+     *
+     * @dev This function iterates through the `offers` array and sets the `isRepoTokenSeen` flag to `true`
+     * for the specified `repoToken`. This helps to avoid double-counting or reprocessing the same repoToken.
+     */
+    function _markRepoTokenAsSeen(address[] memory repoTokensSeen, address repoToken) private  {
+        uint256 i;
+        while (repoTokensSeen[i] != address(0)) {
+            i++;
+        }
+        repoTokensSeen[i] = repoToken;
     }
 
     /**
@@ -161,6 +197,7 @@ library TermAuctionList {
 
         listData.head = offerId;
         listData.offers[offerId] = pendingOffer;
+        ++listData.size;
     }
 
     /**
@@ -223,6 +260,7 @@ library TermAuctionList {
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
                 delete listData.offers[current];
+                --listData.size;
             }
 
             if (insertRepoToken) {
@@ -269,47 +307,48 @@ library TermAuctionList {
         // Return 0 if the list is empty
         if (listData.head == NULL_NODE) return 0;
 
-        // Load pending offers
-        PendingOfferMemory[] memory offers = _loadOffers(listData);
+        bytes32 current = listData.head;
+        address[] memory repoTokensSeen = new address[](listData.size);
+        address repoToken;
         
-        for (uint256 i; i < offers.length; i++) {
-            PendingOfferMemory memory offer = offers[i];
-
+        while (current != NULL_NODE) {
+            repoToken = listData.offers[current].repoToken;
             // Filter by specific repo token if provided, address(0) bypasses this filter
-            if (repoTokenToMatch != address(0) && offer.repoToken != repoTokenToMatch) {
+            if (repoTokenToMatch != address(0) && repoToken != repoTokenToMatch) {
                 // Not a match, skip
                 continue;
             }
 
-            uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+            uint256 offerAmount = listData.offers[current].offerLocker.lockedOffer(current).amount;
 
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
-                if (!offer.isRepoTokenSeen) {
+            if (listData.offers[current].termAuction.auctionCompleted() && repoTokenListData.discountRates[repoToken] == 0) {
+                if (!_hasRepoTokenBeenSeen(repoTokensSeen, repoToken)){
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                        offer.repoToken, 
-                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                        repoToken, 
+                        ITermRepoToken(repoToken).balanceOf(address(this)),
                         purchaseTokenPrecision
                     );
                     totalValue += RepoTokenUtils.calculatePresentValue(
                         repoTokenAmountInBaseAssetPrecision, 
                         purchaseTokenPrecision, 
-                        RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
-                        discountRateAdapter.getDiscountRate(offer.repoToken)
+                        RepoTokenList.getRepoTokenMaturity(repoToken), 
+                        discountRateAdapter.getDiscountRate(repoToken)
                     );
-
-                    // Mark the repo token as seen to avoid double counting
-                    // since multiple offers can be tied to the same repoToken, we need to mark
-                    // the repoTokens we've seen to avoid double counting
-                    _markRepoTokenAsSeen(offers, offer.repoToken);
                 }
+                _markRepoTokenAsSeen(repoTokensSeen, repoToken);
+                
             } else {
                 // Add the offer amount to the total value
                 totalValue += offerAmount;
             }
-        }        
+
+            current = _getNext(listData, current);
+        }
+        
+        return totalValue; 
     }
 
     /**
