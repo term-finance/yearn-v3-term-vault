@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgrad
  * @dev This contract implements the ITermDiscountRateAdapter interface and interacts with the Term Controller
  */
 contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControlUpgradeable {
-    bytes32 public constant DEVOPS_ROLE = bytes32(keccak256("DEVOPS_ROLE"));
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     /// @notice The Term Controller contract
     ITermController public immutable TERM_CONTROLLER;
@@ -22,9 +22,9 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControlUpgra
      * @notice Constructor to initialize the TermDiscountRateAdapter
      * @param termController_ The address of the Term Controller contract
      */
-    constructor(address termController_, address devopsWallet_) {
+    constructor(address termController_, address adminWallet_) {
         TERM_CONTROLLER = ITermController(termController_);
-        _grantRole(DEVOPS_ROLE, devopsWallet_);
+        _grantRole(ADMIN_ROLE, adminWallet_);
     }
 
     /**
@@ -41,22 +41,22 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControlUpgra
         require(len > 0, "No auctions found");
 
         if (len > 1) {
-            if ((block.timestamp - auctionMetadata[len - 1].auctionClearingBlockTimestamp) < 30 minutes) {
-                uint256 i = 0;
-                while (!rateInvalid[repoToken][auctionMetadata[len - 1].termAuctionId]) {
-                    i--;
-                    require(i >= 0, "No valid auction rate found");
+            uint256 latestAuctionTime = auctionMetadata[len - 1].auctionClearingBlockTimestamp;
+            if ((block.timestamp - latestAuctionTime) < 30 minutes) {
+                for (int256 i = int256(len) - 1; i >= 0; i--) {
+                    if (!rateInvalid[repoToken][auctionMetadata[uint256(i)].termAuctionId]) {
+                        return auctionMetadata[uint256(i)].auctionClearingRate;
+                    }
                 }
-                return auctionMetadata[i].auctionClearingRate;
+                revert("No valid auction rate found within the last 30 minutes");
             }
         }
 
         require(!rateInvalid[repoToken][auctionMetadata[0].termAuctionId], "Most recent auction rate is invalid");
-
         return auctionMetadata[0].auctionClearingRate;
     }
 
-    function markRateInvalid(address repoToken, bytes32 termAuctionId) external onlyRole(DEVOPS_ROLE) {
+    function markRateInvalid(address repoToken, bytes32 termAuctionId) external onlyRole(ADMIN_ROLE) {
         rateInvalid[repoToken][termAuctionId] = true;
     }
 }
