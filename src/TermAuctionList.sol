@@ -286,7 +286,7 @@ library TermAuctionList {
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+            if (offer.termAuction.auctionCompleted() && discountRateAdapter.getDiscountRate(offer.repoToken) == 0) {
                 if (!offer.isRepoTokenSeen) {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken, 
@@ -316,6 +316,7 @@ library TermAuctionList {
      * @notice Get cumulative offer data for a specified repoToken
      * @param listData The list data
      * @param repoTokenListData The repoToken list data
+     * @param discountRateAdapter The discount rate adapter
      * @param repoToken The address of the repoToken (optional)
      * @param newOfferAmount The new offer amount for the specified repoToken 
      * @param purchaseTokenPrecision The precision of the purchase token
@@ -331,6 +332,7 @@ library TermAuctionList {
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
+        ITermDiscountRateAdapter discountRateAdapter,
         address repoToken, 
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
@@ -355,7 +357,7 @@ library TermAuctionList {
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-                if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+                if (offer.termAuction.auctionCompleted() && discountRateAdapter.getDiscountRate(offer.repoToken) == 0) {
                     // use normalized repoToken amount if repoToken is not in the list
                     if (!offer.isRepoTokenSeen) {                    
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(

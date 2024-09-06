@@ -431,6 +431,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
+                discountRateAdapter,
                 repoToken
             ) +
             termAuctionListData.getPresentValue(
@@ -490,6 +491,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             liquidBalance +
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
+                discountRateAdapter,
                 address(0)
             ) +
             termAuctionListData.getPresentValue(
@@ -611,6 +613,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             bool foundInOfferList
         ) = termAuctionListData.getCumulativeOfferData(
                 repoTokenListData,
+                discountRateAdapter,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION

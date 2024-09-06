@@ -15,7 +15,6 @@ struct RepoTokenListNode {
 struct RepoTokenListData {
     address head;
     mapping(address => RepoTokenListNode) nodes;
-    mapping(address => uint256) discountRates;
     /// @notice keyed by collateral token
     mapping(address => uint256) collateralTokenParams;
 }
@@ -174,6 +173,7 @@ library RepoTokenList {
      * @notice Get the present value of repoTokens
      * @param listData The list data
      * @param purchaseTokenPrecision The precision of the purchase token
+     * @param discountRateAdapter The discount rate adapter
      * @param repoTokenToMatch The address of the repoToken to match (optional)
      * @return totalPresentValue The total present value of the repoTokens
      * @dev If the `repoTokenToMatch` parameter is provided (non-zero address), the function will filter
@@ -187,6 +187,7 @@ library RepoTokenList {
     function getPresentValue(
         RepoTokenListData storage listData, 
         uint256 purchaseTokenPrecision,
+        ITermDiscountRateAdapter discountRateAdapter,
         address repoTokenToMatch
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
@@ -205,7 +206,7 @@ library RepoTokenList {
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
             uint256 repoTokenPrecision = 10**ERC20(current).decimals();
-            uint256 discountRate = listData.discountRates[current];
+            uint256 discountRate = discountRateAdapter.getDiscountRate(current);
 
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision
@@ -291,7 +292,6 @@ library RepoTokenList {
                     
                     listData.nodes[prev].next = next;
                     delete listData.nodes[current];
-                    delete listData.discountRates[current];
                 }
             } else {
                 /// @dev early exit because list is sorted
@@ -364,29 +364,13 @@ library RepoTokenList {
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
-        discountRate = listData.discountRates[address(repoToken)];
-        if (discountRate != INVALID_AUCTION_RATE) {
-            (redemptionTimestamp, , ,) = repoToken.config();
+        
+        discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
-            // skip matured repoTokens
-            if (redemptionTimestamp < block.timestamp) {
-                revert InvalidRepoToken(address(repoToken));
-            }
+        redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
 
-            uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
-            if (oracleRate != INVALID_AUCTION_RATE) {
-                if (discountRate != oracleRate) {
-                    listData.discountRates[address(repoToken)] = oracleRate;
-                }
-            }
-        } else {
-            discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
-
-            redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
-
-            insertSorted(listData, address(repoToken));
-            listData.discountRates[address(repoToken)] = discountRate;
-        }
+        insertSorted(listData, address(repoToken));
+        
     }
 
     /**
