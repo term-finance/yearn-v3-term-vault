@@ -56,7 +56,33 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControlUpgra
         return auctionMetadata[0].auctionClearingRate;
     }
 
-    function markRateInvalid(address repoToken, bytes32 termAuctionId) external onlyRole(ADMIN_ROLE) {
+    /**
+    * @notice Invalidates the result of a specific auction for a given repo token
+    * @dev This function is used to mark auction results as invalid, typically in cases of suspected manipulation
+    * @param repoToken The address of the repo token associated with the auction
+    * @param termAuctionId The unique identifier of the term auction to be invalidated
+    * @custom:access Restricted to accounts with the ADMIN_ROLE
+    */
+    function invalidateAuctionResult(address repoToken, bytes32 termAuctionId) external onlyRole(ADMIN_ROLE) {
+        // Fetch the auction metadata for the given repo token
+        (AuctionMetadata[] memory auctionMetadata, ) = TERM_CONTROLLER.getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
+        
+        // Check if the termAuctionId exists in the metadata
+        bool auctionExists = false;
+        for (uint256 i = 0; i < auctionMetadata.length; i++) {
+            if (auctionMetadata[i].termAuctionId == termAuctionId) {
+                auctionExists = true;
+                break;
+            }
+        }
+        
+        // Revert if the auction doesn't exist
+        require(auctionExists, "Auction ID not found in metadata");
+        
+        // Check if the rate is already invalidated
+        require(!rateInvalid[repoToken][termAuctionId], "Rate already invalidated");
+
+        // Invalidate the rate
         rateInvalid[repoToken][termAuctionId] = true;
     }
 }
