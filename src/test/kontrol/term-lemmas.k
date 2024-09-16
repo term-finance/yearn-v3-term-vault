@@ -64,11 +64,32 @@ module TERM-LEMMAS
          andBool 0 <=Int B
         [simplification, smt-lemma]
 
-    rule 0 ==Int chop ( 0 -Int X ) => X ==Int 0
+    rule 0 ==Int chop ( X -Int Y ) => X ==Int Y
         requires #rangeUInt(256, X)
-        [simplification]
+         andBool #rangeUInt(256, Y)
+        [simplification, comm]
 
     rule ( X ==Int ( X *Int Y ) /Word Y ) orBool Y ==Int 0 => true [simplification, preserves-definedness]
+
+    // Assume no hash collisions
+    rule keccak ( BUF1 ) ==Int keccak ( BUF2 ) => false
+        requires BUF1 =/=K BUF2
+        [simplification]
+
+    // Assume that hashes will never fall within a very small range (using 32 for simplicity)
+    rule keccak ( _ ) ==Int N => false
+        requires N <Int 32
+        [simplification, comm]
+
+    // Assume that no two hashes will be close enough to each other (using a range of 32 for simplicity)
+    rule keccak ( BUF1 ) ==Int ( keccak ( BUF2 ) +Int N ) => false
+        requires 0 <Int N
+         andBool N <Int 32
+        [simplification, comm]
+
+    rule #lookup ( MAP [ KEY1 <- _ ] , KEY2 ) => #lookup ( MAP , KEY2 )
+        requires KEY1 =/=K KEY2
+        [simplification]
 
     //
     // Rules
@@ -215,10 +236,16 @@ module TERM-LEMMAS-SPEC
 
     claim [length-bytestack]: <k> runLemma ( lengthBytes ( #padToWidth ( 32 , #asByteStack ( ( ( ( ( ( WORD0:Int *Int VV0_amount_114b9705:Int ) /Int WORD:Int ) +Int WORD8:Int ) |Int #asWord ( #buf ( 16 , WORD9:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ) ) /Int pow128 ) ) ) ) ) => doneLemma ( 32 ) ... </k>
 
-    claim [add-not-eq-zero]: <k> runLemma ( 0 ==Int ( ( ( ( ( VV0_purchaseTokenPrecision_114b9705:Int *Int ( WORD0:Int -Int TIMESTAMP_CELL:Int ) ) /Int 31104000 ) *Int WORD:Int ) /Int 1000000000000000000 ) +Int VV0_purchaseTokenPrecision_114b9705:Int ) ) => doneLemma ( false ) </k>
+    claim [add-not-eq-zero]: <k> runLemma ( 0 ==Int ( ( ( ( ( VV0_purchaseTokenPrecision_114b9705:Int *Int ( WORD0:Int -Int TIMESTAMP_CELL:Int ) ) /Int 31104000 ) *Int WORD:Int ) /Int 1000000000000000000 ) +Int VV0_purchaseTokenPrecision_114b9705:Int ) ) => doneLemma ( false ) ... </k>
         requires 0 <Int VV0_purchaseTokenPrecision_114b9705
          andBool 0 <=Int WORD
          andBool 0 <=Int TIMESTAMP_CELL
          andBool TIMESTAMP_CELL <=Int WORD0
+
+    claim [chop-comparison]: <k> runLemma ( 0 ==Int chop ( ( 491460923342184218035706888008750043977755113263 -Int VV0_repoToken_114b9705 ) ) ) => doneLemma ( 491460923342184218035706888008750043977755113263 ==Int VV0_repoToken_114b9705 ) ... </k>
+        requires 0 <=Int VV0_repoToken_114b9705:Int
+         andBool VV0_repoToken_114b9705:Int <Int pow160
+
+    claim [keccak-lookup]: <k> runLemma ( #lookup ( STORAGE:Map [ maxUInt5 <- WORD:Int ] [ keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) <- 491460923342184218035706888008750043977755113263 ] [ ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 1 ) <- WORD0:Int ] [ ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) <- 263400868551549723330807389252719309078400616203 ] [ ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) <- 1405310203571408291950365054053061012934685786634 ] , keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) ) ) => doneLemma ( #lookup ( STORAGE:Map , keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) ) ) ... </k>
 
 endmodule
