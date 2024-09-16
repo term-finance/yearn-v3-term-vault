@@ -6,58 +6,9 @@ import "kontrol-cheatcodes/KontrolCheats.sol";
 
 import "src/RepoTokenList.sol";
 
-uint256 constant ETH_UPPER_BOUND = 2 ** 95;
-uint256 constant TIME_UPPER_BOUND = 2 ** 35;
-
-contract RepoToken is /*ITermRepoToken,*/ Test, KontrolCheats {
-    function decimals() public view virtual returns (uint8) {
-        return 18;
-    }
-
-    function balanceOf(address account) public /*view*/ virtual returns (uint256) {
-        uint256 value = freshUInt256();
-        vm.assume(value < ETH_UPPER_BOUND);
-        return value;
-    }
-
-    function redemptionValue() external /*view*/ returns (uint256) {
-        uint256 value = freshUInt256();
-        vm.assume(value < ETH_UPPER_BOUND);
-        return value;
-    }
-
-    function config() external /*view*/ returns (
-        uint256 redemptionTimestamp,
-        address purchaseToken,
-        address termRepoServicer,
-        address termRepoCollateralManager
-    ) {
-        redemptionTimestamp = freshUInt256();
-        vm.assume(redemptionTimestamp < TIME_UPPER_BOUND);
-        purchaseToken = kevm.freshAddress();
-        termRepoServicer = kevm.freshAddress();
-        termRepoCollateralManager = kevm.freshAddress();
-    }
-
-    function termRepoId() external /*view*/ returns (bytes32) {
-        return bytes32(freshUInt256());
-    }
-}
-
-contract TermDiscountRateAdapter is /*ITermDiscountRateAdapter,*/ Test, KontrolCheats {
-    function repoRedemptionHaircut(address) external /*view*/ returns (uint256) {
-        uint256 value = freshUInt256();
-        vm.assume(value <= 1e18);
-        return value;
-    }
-
-    function getDiscountRate(address repoToken) external /*view*/ returns (uint256) {
-        uint256 value = freshUInt256();
-        vm.assume(0 < value);
-        vm.assume(value < ETH_UPPER_BOUND);
-        return value;
-    }
-}
+import "src/test/kontrol/Constants.sol";
+import "src/test/kontrol/RepoToken.sol";
+import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
 contract RepoTokenListTest is Test, KontrolCheats {
     using RepoTokenList for RepoTokenListData;
