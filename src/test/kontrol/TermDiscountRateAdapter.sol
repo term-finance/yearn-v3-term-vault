@@ -20,4 +20,8 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, Test, KontrolCheat
         vm.assume(value < ETH_UPPER_BOUND);
         return value;
     }
+
+    function TERM_CONTROLLER() external view returns (ITermController) {
+        return ITermController(kevm.freshAddress());
+    }
 }

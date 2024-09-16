@@ -46,8 +46,7 @@ contract RepoTokenListTest is Test, KontrolCheats {
     }
 
     function testGetPresentValueEmpty(
-        uint256 purchaseTokenPrecision,
-        address repoTokenToMatch
+        uint256 purchaseTokenPrecision
     ) external {
         _initializeListEmpty();
 
@@ -56,8 +55,7 @@ contract RepoTokenListTest is Test, KontrolCheats {
 
         uint256 totalPresentValue = _listData.getPresentValue(
             ITermDiscountRateAdapter(address(discountRateAdapter)),
-            purchaseTokenPrecision,
-            repoTokenToMatch
+            purchaseTokenPrecision
         );
 
         assert(totalPresentValue == 0);
@@ -118,8 +116,7 @@ contract RepoTokenListTest is Test, KontrolCheats {
     }
 
     function testGetPresentValueSymbolic(
-        uint256 purchaseTokenPrecision,
-        address repoTokenToMatch
+        uint256 purchaseTokenPrecision
     ) external {
         kevm.symbolicStorage(address(this));
         _initializeRepoTokenList();
@@ -132,8 +129,7 @@ contract RepoTokenListTest is Test, KontrolCheats {
 
         uint256 totalPresentValue = _listData.getPresentValue(
             ITermDiscountRateAdapter(address(discountRateAdapter)),
-            purchaseTokenPrecision,
-            repoTokenToMatch
+            purchaseTokenPrecision
         );
     }
 }
