@@ -14,9 +14,9 @@ verbose                    = false
 debug                      = false
 max-depth                  = 100000
 max-iterations             = 10000
-reinit                     = false
+reinit                     = true
 cse                        = false
-workers                    = 1
+workers                    = 6
 max-frontier-parallel      = 6
 maintenance-rate           = 24
 assume-defined             = true
@@ -38,10 +38,14 @@ auto_abstract              = true
 run-constructor            = false
 bmc-depth                  = 2
 match-test                 = [
-        "RepoTokenListTest.testGetCumulativeDataEmpty",
-        "RepoTokenListTest.testGetCumulativeDataSymbolic",
-        "RepoTokenListTest.testGetPresentValueEmpty",
-        "RepoTokenListTest.testGetPresentValueSymbolic",
+        #"RepoTokenListTest.testGetCumulativeDataEmpty",
+        #"RepoTokenListTest.testGetCumulativeDataSymbolic",
+        #"RepoTokenListTest.testGetPresentValueEmpty",
+        #"RepoTokenListTest.testGetPresentValueSymbolic",
+        #"TermAuctionListTest.testGetCumulativeDataEmpty",
+        "TermAuctionListTest.testGetCumulativeDataSymbolic",
+        #"TermAuctionListTest.testGetPresentValueEmpty",
+        #"TermAuctionListTest.testGetPresentValueSymbolic",
     ]
 #bug-report                = 'bug-report.tar' # disabled by default
 ast                        = true
