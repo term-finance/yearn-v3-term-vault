@@ -95,6 +95,50 @@ contract TermAuctionListTest is Test, KontrolCheats {
         vm.store(address(this), bytes32(storageSlot), bytes32(uint256(uint160(value))));
     }
 
+    function _initializeTermAuctionList(
+        TermDiscountRateAdapter discountRateAdapter
+    ) internal {
+        bytes32 previous = TermAuctionList.NULL_NODE;
+        bytes32 current = _listData.head;
+        uint256 count = 0;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 newCurrent = keccak256(abi.encode("TermAuctionList", count));
+            ++count;
+
+            if (previous == TermAuctionList.NULL_NODE) {
+                _listData.head = newCurrent;
+            } else {
+                _listData.nodes[previous].next = newCurrent;
+            }
+
+            RepoToken repoToken = new RepoToken();
+            uint256 offerAmount = freshUInt256();
+            TermAuction termAuction = new TermAuction();
+            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
+            repoToken.initializeSymbolic();
+            kevm.symbolicStorage(address(termAuction));
+            kevm.symbolicStorage(address(offerLocker));
+
+            // Necessary to overwrite entire storage slot, makes expressions simpler
+            uint256 offerStorageSlot = _getOfferStorageSlot(newCurrent);
+            _storeAddress(offerStorageSlot, address(repoToken));
+            _storeUInt256(offerStorageSlot + 1, offerAmount);
+            _storeAddress(offerStorageSlot + 2, address(termAuction));
+            _storeAddress(offerStorageSlot + 3, address(offerLocker));
+
+            bool offerAmountIsZero = offerLocker.lockedOffer(newCurrent).amount == 0;
+            bool auctionIsCompleted = termAuction.auctionCompleted();
+            vm.assume(offerAmountIsZero == auctionIsCompleted);
+
+            discountRateAdapter.initializeSymbolicFor(address(repoToken));
+
+            previous = newCurrent;
+            current = _getNext(_listData, newCurrent);
+        }
+    }
+
+    /*
     function _initializeTermAuctionList() internal {
         bytes32 previous = TermAuctionList.NULL_NODE;
         bytes32 current = _listData.head;
@@ -117,6 +161,8 @@ contract TermAuctionListTest is Test, KontrolCheats {
                 offerId = _getNext(_listData, offerId);
             }
 
+            ++count;
+
             address repoToken = address(new RepoToken());
             uint256 offerAmount = freshUInt256();
             address termAuction = address(new TermAuction());
@@ -132,17 +178,19 @@ contract TermAuctionListTest is Test, KontrolCheats {
             current = _getNext(_listData, newCurrent);
         }
     }
+    */
 
     function testGetCumulativeDataSymbolic(
         address repoToken,
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
     ) external {
-        kevm.symbolicStorage(address(this));
-        _initializeTermAuctionList();
-
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
+
+        kevm.symbolicStorage(address(this));
+        kevm.symbolicStorage(address(discountRateAdapter));
+        _initializeTermAuctionList(discountRateAdapter);
 
         vm.assume(newOfferAmount < ETH_UPPER_BOUND);
         vm.assume(purchaseTokenPrecision <= 18);
@@ -164,11 +212,12 @@ contract TermAuctionListTest is Test, KontrolCheats {
         uint256 purchaseTokenPrecision,
         address repoTokenToMatch
     ) external {
-        kevm.symbolicStorage(address(this));
-        _initializeTermAuctionList();
-
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
+
+        kevm.symbolicStorage(address(this));
+        kevm.symbolicStorage(address(discountRateAdapter));
+        _initializeTermAuctionList(discountRateAdapter);
 
         vm.assume(0 < purchaseTokenPrecision);
         vm.assume(purchaseTokenPrecision <= 18);
