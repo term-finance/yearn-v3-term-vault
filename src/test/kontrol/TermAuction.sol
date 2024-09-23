@@ -8,6 +8,8 @@ import "src/interfaces/term/ITermAuction.sol";
 import "src/test/kontrol/Constants.sol";
 
 contract TermAuction is ITermAuction, Test, KontrolCheats {
+	bool _auctionCompleted;
+
     function termAuctionOfferLocker() external view returns (address) {
         return kevm.freshAddress();
     }
@@ -21,7 +23,7 @@ contract TermAuction is ITermAuction, Test, KontrolCheats {
     }
 
     function auctionCompleted() external view returns (bool) {
-        return kevm.freshBool() > 0;
+        return _auctionCompleted;
     }
 
     function auctionCancelledForWithdrawal() external view returns (bool) {

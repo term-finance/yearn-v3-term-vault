@@ -8,6 +8,7 @@ import "src/interfaces/term/ITermAuctionOfferLocker.sol";
 import "src/test/kontrol/Constants.sol";
 
 contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats {
+    mapping(bytes32 => TermAuctionOffer) _lockedOffers;
 
     function termRepoId() external view returns (bytes32) {
         return bytes32(freshUInt256());
@@ -38,8 +39,12 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
     }
 
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {
-        TermAuctionOffer memory offer;
+        TermAuctionOffer memory offer = _lockedOffers[id];
 
+        vm.assume(offer.offerPriceRevealed < ETH_UPPER_BOUND);
+        vm.assume(offer.amount < ETH_UPPER_BOUND);
+
+        /*
         offer.id = bytes32(freshUInt256());
         offer.offeror = kevm.freshAddress();
         offer.offerPriceHash = bytes32(freshUInt256());
@@ -49,6 +54,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
         vm.assume(offer.amount < ETH_UPPER_BOUND);
         offer.purchaseToken = kevm.freshAddress();
         offer.isRevealed = kevm.freshBool() > 0;
+        */
 
         return offer;
     }
@@ -56,6 +62,8 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external returns (bytes32[] memory) {
+        kevm.symbolicStorage(address(this));
+
         uint256 length = freshUInt256();
         bytes32[] memory offers = new bytes32[](length);
 
