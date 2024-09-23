@@ -65,12 +65,16 @@ contract RepoTokenListTest is Test, KontrolCheats {
         return listData.nodes[current].next;
     }
 
-    function _initializeRepoTokenList() internal {
+    function _initializeRepoTokenList(
+        TermDiscountRateAdapter discountRateAdapter
+    ) internal {
         address previous = RepoTokenList.NULL_NODE;
         address current = _listData.head;
 
         while (current != RepoTokenList.NULL_NODE) {
             RepoToken repoToken = new RepoToken();
+            repoToken.initializeSymbolic();
+
             address newCurrent = address(repoToken);
 
             if (previous == RepoTokenList.NULL_NODE) {
@@ -79,13 +83,47 @@ contract RepoTokenListTest is Test, KontrolCheats {
                 _listData.nodes[previous].next = newCurrent;
             }
 
-            uint256 discountRate = freshUInt256();
-            vm.assume(0 < discountRate);
-            vm.assume(discountRate < ETH_UPPER_BOUND);
-            _listData.discountRates[newCurrent] = discountRate;
+            discountRateAdapter.initializeSymbolicFor(newCurrent);
+            _listData.discountRates[newCurrent] =
+                discountRateAdapter.getDiscountRate(newCurrent);
 
             previous = newCurrent;
             current = _getNext(_listData, newCurrent);
+        }
+    }
+
+    // Calculates the cumulative data assuming that no tokens have matured
+    function _cumulativeRepoTokenDataNotMatured(
+        ITermDiscountRateAdapter discountRateAdapter,
+        uint256 purchaseTokenPrecision
+    ) internal view returns (
+        uint256 cumulativeWeightedTimeToMaturity,
+        uint256 cumulativeRepoTokenAmount
+    ) {
+        address current = _listData.head;
+
+        while (current != RepoTokenList.NULL_NODE) {
+            (uint256 currentMaturity, , ,) = ITermRepoToken(current).config();
+            assert(currentMaturity > block.timestamp);
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(current);
+            uint256 timeToMaturity = currentMaturity - block.timestamp;
+
+            uint256 repoTokenAmountInBaseAssetPrecision =
+                RepoTokenUtils.getNormalizedRepoTokenAmount(
+                    current,
+                    repoTokenBalance,
+                    purchaseTokenPrecision,
+                    repoRedemptionHaircut
+                );
+
+            uint256 weightedTimeToMaturity =
+                timeToMaturity * repoTokenAmountInBaseAssetPrecision;
+
+            cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
+            cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
+
+            current = _getNext(_listData, current);
         }
     }
 
@@ -94,11 +132,12 @@ contract RepoTokenListTest is Test, KontrolCheats {
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision
     ) external {
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
+
+        kevm.symbolicStorage(address(this));
+        kevm.symbolicStorage(address(discountRateAdapter));
+        _initializeRepoTokenList(discountRateAdapter);
 
         vm.assume(repoTokenAmount < ETH_UPPER_BOUND);
         vm.assume(purchaseTokenPrecision <= 18);
@@ -108,28 +147,94 @@ contract RepoTokenListTest is Test, KontrolCheats {
             uint256 cumulativeRepoTokenAmount,
             bool found
         ) = _listData.getCumulativeRepoTokenData(
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            discountRateAdapter,
             repoToken,
             repoTokenAmount,
             purchaseTokenPrecision
         );
+
+        if (!found) {
+            // Simplified calculation in the case no tokens have matured
+            (
+                uint256 cumulativeWeightedTimeToMaturityNotMatured,
+                uint256 cumulativeRepoTokenAmountNotMatured
+            ) = _cumulativeRepoTokenDataNotMatured(
+                discountRateAdapter,
+                purchaseTokenPrecision
+            );
+
+            assertEq(
+                cumulativeWeightedTimeToMaturity,
+                cumulativeWeightedTimeToMaturityNotMatured
+            );
+
+            assertEq(
+                cumulativeRepoTokenAmount,
+                cumulativeRepoTokenAmountNotMatured
+            );
+        }
+    }
+
+    // Calculates the total present value assuming that no tokens have matured
+    function _totalPresentValueNotMatured(
+        ITermDiscountRateAdapter discountRateAdapter,
+        uint256 purchaseTokenPrecision
+    ) internal view returns (uint256) {
+        address current = _listData.head;
+        uint256 totalPresentValue = 0;
+
+        while (current != RepoTokenList.NULL_NODE) {
+            (uint256 currentMaturity, , ,) = ITermRepoToken(current).config();
+            assert(currentMaturity > block.timestamp);
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(current);
+            uint256 discountRate = discountRateAdapter.getDiscountRate(current);
+            uint256 timeToMaturity = currentMaturity - block.timestamp;
+
+            uint256 repoTokenAmountInBaseAssetPrecision =
+                RepoTokenUtils.getNormalizedRepoTokenAmount(
+                    current,
+                    repoTokenBalance,
+                    purchaseTokenPrecision,
+                    repoRedemptionHaircut
+                );
+
+            uint256 presentValue =
+                repoTokenAmountInBaseAssetPrecision /
+                (1 + discountRate * timeToMaturity / (360 days * 1e18));
+
+            totalPresentValue += presentValue;
+
+            current = _getNext(_listData, current);
+        }
+
+        return totalPresentValue;
     }
 
     function testGetPresentValueSymbolic(
         uint256 purchaseTokenPrecision
     ) external {
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
+
+        kevm.symbolicStorage(address(this));
+        kevm.symbolicStorage(address(discountRateAdapter));
+        _initializeRepoTokenList(discountRateAdapter);
 
         vm.assume(0 < purchaseTokenPrecision);
         vm.assume(purchaseTokenPrecision <= 18);
 
         uint256 totalPresentValue = _listData.getPresentValue(
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            discountRateAdapter,
             purchaseTokenPrecision
         );
+
+        // Simplified calculation in the case no tokens have matured
+        uint256 totalPresentValueNotMatured = _totalPresentValueNotMatured(
+            discountRateAdapter,
+            purchaseTokenPrecision
+        );
+
+        assert(totalPresentValue == totalPresentValueNotMatured);
     }
 }
