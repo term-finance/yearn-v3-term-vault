@@ -100,6 +100,18 @@ module TERM-LEMMAS
     rule 0 /Word _ => 0
         [simplification]
 
+    rule ( X *Int A ) ==Int ( Y *Int A ) => X ==Int Y
+        requires A =/=Int 0
+        [simplification]
+
+    rule ( A *Int X ) ==Int ( A *Int Y ) => X ==Int Y
+        requires A =/=Int 0
+        [simplification]
+
+    rule X /Int Y => X divInt Y
+        requires 0 <=Int X
+        [simplification]
+
     //
     // Rules
     //
