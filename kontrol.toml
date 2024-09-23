@@ -47,7 +47,7 @@ match-test                 = [
         #"TermAuctionListTest.testGetPresentValueEmpty",
         #"TermAuctionListTest.testGetPresentValueSymbolic",
     ]
-bug-report                 = 'bug-report.tar'# disabled by default
+#bug-report                 = 'bug-report.tar'# disabled by default
 ast                        = true
 smt-tactic                 = '(check-sat-using smt)'
 
