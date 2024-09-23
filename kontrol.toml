@@ -10,7 +10,7 @@ ast                        = true
 
 [prove.default]
 foundry-project-root       = '.'
-verbose                    = false
+verbose                    = true
 debug                      = false
 max-depth                  = 100000
 max-iterations             = 10000
@@ -36,19 +36,20 @@ break-on-basic-blocks      = false
 break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
-bmc-depth                  = 2
+bmc-depth                  = 1
 match-test                 = [
         #"RepoTokenListTest.testGetCumulativeDataEmpty",
-        #"RepoTokenListTest.testGetCumulativeDataSymbolic",
+        "RepoTokenListTest.testGetCumulativeDataSymbolic",
         #"RepoTokenListTest.testGetPresentValueEmpty",
         #"RepoTokenListTest.testGetPresentValueSymbolic",
         #"TermAuctionListTest.testGetCumulativeDataEmpty",
-        "TermAuctionListTest.testGetCumulativeDataSymbolic",
+        #"TermAuctionListTest.testGetCumulativeDataSymbolic",
         #"TermAuctionListTest.testGetPresentValueEmpty",
         #"TermAuctionListTest.testGetPresentValueSymbolic",
     ]
-#bug-report                = 'bug-report.tar' # disabled by default
+bug-report                 = 'bug-report.tar'# disabled by default
 ast                        = true
+smt-tactic                 = '(check-sat-using smt)'
 
 [show.default]
 foundry-project-root       = '.'
