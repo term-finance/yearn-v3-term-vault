@@ -99,17 +99,16 @@ contract TermAuctionListTest is Test, KontrolCheats {
         TermDiscountRateAdapter discountRateAdapter
     ) internal {
         bytes32 previous = TermAuctionList.NULL_NODE;
-        bytes32 current = _listData.head;
         uint256 count = 0;
 
-        while (current != TermAuctionList.NULL_NODE) {
-            bytes32 newCurrent = keccak256(abi.encode("TermAuctionList", count));
+        while (kevm.freshBool() != 0) {
+            bytes32 current = keccak256(abi.encode("TermAuctionList", count));
             ++count;
 
             if (previous == TermAuctionList.NULL_NODE) {
-                _listData.head = newCurrent;
+                _listData.head = current;
             } else {
-                _listData.nodes[previous].next = newCurrent;
+                _listData.nodes[previous].next = current;
             }
 
             RepoToken repoToken = new RepoToken();
@@ -121,20 +120,25 @@ contract TermAuctionListTest is Test, KontrolCheats {
             kevm.symbolicStorage(address(offerLocker));
 
             // Necessary to overwrite entire storage slot, makes expressions simpler
-            uint256 offerStorageSlot = _getOfferStorageSlot(newCurrent);
+            uint256 offerStorageSlot = _getOfferStorageSlot(current);
             _storeAddress(offerStorageSlot, address(repoToken));
             _storeUInt256(offerStorageSlot + 1, offerAmount);
             _storeAddress(offerStorageSlot + 2, address(termAuction));
             _storeAddress(offerStorageSlot + 3, address(offerLocker));
 
-            bool offerAmountIsZero = offerLocker.lockedOffer(newCurrent).amount == 0;
+            bool offerAmountIsZero = offerLocker.lockedOffer(current).amount == 0;
             bool auctionIsCompleted = termAuction.auctionCompleted();
             vm.assume(offerAmountIsZero == auctionIsCompleted);
 
             discountRateAdapter.initializeSymbolicFor(address(repoToken));
 
-            previous = newCurrent;
-            current = _getNext(_listData, newCurrent);
+            previous = current;
+        }
+
+        if (previous == TermAuctionList.NULL_NODE) {
+            _listData.head = TermAuctionList.NULL_NODE;
+        } else {
+            _listData.nodes[previous].next = TermAuctionList.NULL_NODE;
         }
     }
 
