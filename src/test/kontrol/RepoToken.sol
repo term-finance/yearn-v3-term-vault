@@ -10,6 +10,7 @@ import "src/test/kontrol/Constants.sol";
 contract RepoToken is ITermRepoToken, Test, KontrolCheats {
     mapping(address => uint256) _balance;
     uint256 _redemptionTimestamp;
+    uint256 _redemptionValue;
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
@@ -20,6 +21,9 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         _redemptionTimestamp = freshUInt256();
         vm.assume(block.timestamp < _redemptionTimestamp); // TODO: confirm that this is reasonable
         vm.assume(_redemptionTimestamp < TIME_UPPER_BOUND);
+
+        _redemptionValue = freshUInt256();
+        vm.assume(_redemptionValue < ETH_UPPER_BOUND);
     }
 
     function decimals() public view virtual returns (uint8) {
@@ -31,9 +35,7 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
     }
 
     function redemptionValue() external view returns (uint256) {
-        uint256 value = freshUInt256();
-        vm.assume(value < ETH_UPPER_BOUND);
-        return value;
+        return _redemptionValue;
     }
 
     function config() external view returns (
