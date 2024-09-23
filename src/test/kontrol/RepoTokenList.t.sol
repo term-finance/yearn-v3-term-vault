@@ -69,6 +69,38 @@ contract RepoTokenListTest is Test, KontrolCheats {
         TermDiscountRateAdapter discountRateAdapter
     ) internal {
         address previous = RepoTokenList.NULL_NODE;
+
+        while (kevm.freshBool() != 0) {
+            RepoToken repoToken = new RepoToken();
+            repoToken.initializeSymbolic();
+
+            address current = address(repoToken);
+
+            if (previous == RepoTokenList.NULL_NODE) {
+                _listData.head = current;
+            } else {
+                _listData.nodes[previous].next = current;
+            }
+
+            discountRateAdapter.initializeSymbolicFor(current);
+            _listData.discountRates[current] =
+                discountRateAdapter.getDiscountRate(current);
+
+            previous = current;
+        }
+
+        if (previous == RepoTokenList.NULL_NODE) {
+            _listData.head = RepoTokenList.NULL_NODE;
+        } else {
+            _listData.nodes[previous].next = RepoTokenList.NULL_NODE;
+        }
+    }
+
+    /*
+    function _initializeRepoTokenList(
+        TermDiscountRateAdapter discountRateAdapter
+    ) internal {
+        address previous = RepoTokenList.NULL_NODE;
         address current = _listData.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -91,6 +123,7 @@ contract RepoTokenListTest is Test, KontrolCheats {
             current = _getNext(_listData, newCurrent);
         }
     }
+    */
 
     // Calculates the cumulative data assuming that no tokens have matured
     function _cumulativeRepoTokenDataNotMatured(
