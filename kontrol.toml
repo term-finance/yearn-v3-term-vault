@@ -18,8 +18,8 @@ max-iterations             = 10000
 reinit                     = false
 cse                        = false
 workers                    = 1
-max-frontier-parallel      = 1
-maintenance-rate           = 24
+max-frontier-parallel      = 6
+maintenance-rate           = 6
 assume-defined             = true
 no-log-rewrites            = true
 kore-rpc-command           = 'kore-rpc-booster --no-post-exec-simplify'
@@ -27,8 +27,8 @@ failure-information        = true
 counterexample-information = true
 minimize-proofs            = false
 fail-fast                  = true
-smt-timeout                = 5000
-smt-retry-limit            = 2
+smt-timeout                = 16000
+smt-retry-limit            = 0
 break-every-step           = false
 break-on-jumpi             = false
 break-on-calls             = false
@@ -39,16 +39,15 @@ auto_abstract              = true
 run-constructor            = false
 bmc-depth                  = 1
 match-test                 = [
-        #"RepoTokenListTest.testGetCumulativeDataEmpty",
-        #"RepoTokenListTest.testGetCumulativeDataSymbolic",
-        #"RepoTokenListTest.testGetPresentValueEmpty",
-        #"RepoTokenListTest.testGetPresentValueSymbolic",
-        #"TermAuctionListTest.testGetCumulativeDataEmpty",
-        #"TermAuctionListTest.testGetCumulativeDataSymbolic",
-        #"TermAuctionListTest.testGetPresentValueEmpty",
+        "RepoTokenListTest.testGetCumulativeDataEmpty",
+        "RepoTokenListTest.testGetCumulativeDataSymbolic",
+        "RepoTokenListTest.testGetPresentValueEmpty",
+        "RepoTokenListTest.testGetPresentValueSymbolic",
+        "TermAuctionListTest.testGetCumulativeDataEmpty",
+        "TermAuctionListTest.testGetCumulativeDataSymbolic",
+        "TermAuctionListTest.testGetPresentValueEmpty",
         "TermAuctionListTest.testGetPresentValueSymbolic",
     ]
-bug-report                 = 'bug-report-present-value.tar'# disabled by default
 ast                        = true
 smt-tactic                 = '(check-sat-using smt)'
 
