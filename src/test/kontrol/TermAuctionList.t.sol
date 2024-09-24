@@ -102,7 +102,16 @@ contract TermAuctionListTest is Test, KontrolCheats {
         uint256 count = 0;
 
         while (kevm.freshBool() != 0) {
-            bytes32 current = keccak256(abi.encode("TermAuctionList", count));
+            RepoToken repoToken = new RepoToken();
+            uint256 offerAmount = freshUInt256();
+            vm.assume(0 < offerAmount);
+            TermAuction termAuction = new TermAuction();
+            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
+            repoToken.initializeSymbolic();
+            kevm.symbolicStorage(address(termAuction));
+            kevm.symbolicStorage(address(offerLocker));
+
+            bytes32 current = keccak256(abi.encodePacked(count, address(this), address(offerLocker)));
             ++count;
 
             if (previous == TermAuctionList.NULL_NODE) {
@@ -110,14 +119,6 @@ contract TermAuctionListTest is Test, KontrolCheats {
             } else {
                 _listData.nodes[previous].next = current;
             }
-
-            RepoToken repoToken = new RepoToken();
-            uint256 offerAmount = freshUInt256();
-            TermAuction termAuction = new TermAuction();
-            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
-            repoToken.initializeSymbolic();
-            kevm.symbolicStorage(address(termAuction));
-            kevm.symbolicStorage(address(offerLocker));
 
             // Necessary to overwrite entire storage slot, makes expressions simpler
             uint256 offerStorageSlot = _getOfferStorageSlot(current);

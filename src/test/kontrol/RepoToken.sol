@@ -16,6 +16,7 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         kevm.symbolicStorage(address(this));
 
         _balance[msg.sender] = freshUInt256();
+        vm.assume(0 < _balance[msg.sender]); // TODO: confirm that this is reasonable
         vm.assume(_balance[msg.sender] < ETH_UPPER_BOUND);
 
         _redemptionTimestamp = freshUInt256();
