@@ -103,13 +103,19 @@ contract TermAuctionListTest is Test, KontrolCheats {
 
         while (kevm.freshBool() != 0) {
             RepoToken repoToken = new RepoToken();
+            repoToken.initializeSymbolic();
+
+            TermAuction termAuction = new TermAuction();
+            kevm.symbolicStorage(address(termAuction));
+            uint256 auctionCompleted = freshUInt256();
+            vm.assume(auctionCompleted < 2);
+            vm.store(address(termAuction), bytes32(uint256(27)), bytes32(auctionCompleted));
+
+            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
+            kevm.symbolicStorage(address(offerLocker));
+
             uint256 offerAmount = freshUInt256();
             vm.assume(0 < offerAmount);
-            TermAuction termAuction = new TermAuction();
-            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
-            repoToken.initializeSymbolic();
-            kevm.symbolicStorage(address(termAuction));
-            kevm.symbolicStorage(address(offerLocker));
 
             bytes32 current = keccak256(abi.encodePacked(count, address(this), address(offerLocker)));
             ++count;

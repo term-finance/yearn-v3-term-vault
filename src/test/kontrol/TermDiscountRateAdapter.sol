@@ -12,12 +12,15 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, Test, KontrolCheat
     mapping(address => uint256) _discountRate;
 
     function initializeSymbolicFor(address repoToken) public {
-        _repoRedemptionHaircut[repoToken] = freshUInt256();
-        vm.assume(_repoRedemptionHaircut[repoToken] <= 1e18);
+        uint256 repoRedemptionHaircut = freshUInt256();
+        vm.assume(repoRedemptionHaircut <= 1e18);
+        _repoRedemptionHaircut[repoToken] = repoRedemptionHaircut;
 
-        _discountRate[repoToken] = freshUInt256();
-        vm.assume(0 < _discountRate[repoToken]);
-        vm.assume(_discountRate[repoToken] < ETH_UPPER_BOUND);
+
+        uint256 discountRate = freshUInt256();
+        vm.assume(0 < discountRate);
+        vm.assume(discountRate < ETH_UPPER_BOUND);
+        _discountRate[repoToken] = discountRate;
     }
 
     function repoRedemptionHaircut(address repoToken) external view returns (uint256) {

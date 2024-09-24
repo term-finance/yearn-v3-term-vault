@@ -20,125 +20,27 @@ module TERM-LEMMAS
  // --------------------------------------
     rule <k> runLemma(T) => doneLemma(T) ... </k>
 
-    rule C <=Int A *Int B => C /Int A <=Int B
-      requires 0 <=Int C andBool 0 <Int A
-       andBool C modInt A ==Int 0
-       [simplification(40), concrete(C, A), preserves-definedness]
+    // Instantiation of the Kontrol lemma
+    // rule ( X ==Int ( X *Int Y ) /Word Y ) orBool Y ==Int 0 => true [simplification, preserves-definedness]
+    // when Y is of the form Y *Int Z, because then the `Y ==Int 0` condition gets simplified to a different form
+    rule ( X ==Int ( X *Int (Y *Int Z) ) /Word (Y *Int Z) ) orBool (Y ==Int 0 orBool Z ==Int 0) => true [simplification, preserves-definedness]
 
-    rule A ==Int B => false
-      requires 0 <=Int A andBool B <Int 0
-      [simplification, concrete(B)]
+    // Instantiation of the Kontrol lemma
+    // rule ( X ==Int ( X *Int Y ) /Word Y ) orBool Y ==Int 0 => true [simplification, preserves-definedness]
+    // when Y is of the form Y *Int ( Z *Int T ), because then the `Y ==Int 0` condition gets simplified to a different form
+    rule ( X ==Int ( X *Int (Y *Int (Z *Int T)) ) /Word (Y *Int (Z *Int T)) ) orBool (Y ==Int 0 orBool (Z ==Int 0 orBool T ==Int 0)) => true [simplification, preserves-definedness]
 
-    rule 0 <=Int A -Int B => B <=Int A
-      [simplification, symbolic(A, B)]
-
-    rule ( ( A *Int B ) +Int C ) /Int D => ( ( ( A /Int 10 ) *Int B ) +Int ( ( D /Int 10 ) -Int 1 ) ) /Int ( D /Int 10 )
-      requires 0 <=Int A andBool 0 <Int D
-       andBool A modInt 10 ==Int 0 andBool D modInt 10 ==Int 0 andBool C ==Int D -Int 1
-       [simplification, concrete(A, C, D), preserves-definedness]
-
-    rule [asWord-lt-concat-left]:
-      #asWord ( BA1 +Bytes BA2 ) <Int X => #asWord ( BA1 ) <Int X /Int ( 2 ^Int ( 8 *Int lengthBytes ( BA2 ) ) )
-      requires X modInt ( 2 ^Int ( 8 *Int lengthBytes ( BA2 ) ) ) ==Int 0
+    // Instantiation of the Kontrol lemma
+    // rule ( X ==Int ( X *Int Y ) /Word Y ) orBool Y ==Int 0 => true [simplification, preserves-definedness]
+    // when Y is of the form Y /Int Z, because then the `Y ==Int 0` condition gets simplified to a different form
+    rule ( X ==Int ( X *Int (Y /Int Z) ) /Word (Y /Int Z) ) orBool Y <Int Z => true
+      requires notBool ( Z ==Int 0 )
       [simplification, preserves-definedness]
 
-    rule A +Int B ==Int 0 => false
-        requires 0 <=Int A
-         andBool 0 <=Int B
-         andBool ( (0 =/=Int A) orBool (0 =/=Int B) )
-        [simplification, smt-lemma]
-
-    rule 0 <=Int A -Int B => true
-        requires 0 <=Int A
-         andBool 0 <=Int B
-         andBool B <=Int A
-        [simplification, smt-lemma]
-
-    rule 0 <=Int A *Int B => true
-        requires 0 <=Int A
-         andBool 0 <=Int B
-        [simplification, smt-lemma]
-
-    rule 0 <=Int A /Int B => true
-        requires 0 <=Int A
-         andBool 0 <=Int B
-        [simplification, smt-lemma]
-
-    rule 0 ==Int chop ( X -Int Y ) => X ==Int Y
-        requires #rangeUInt(256, X)
-         andBool #rangeUInt(256, Y)
-        [simplification, comm]
-
-    rule ( X ==Int ( X *Int Y ) /Word Y ) orBool Y ==Int 0 => true [simplification, preserves-definedness]
-
-    // Assume no hash collisions
-    rule keccak ( BUF1 ) ==Int keccak ( BUF2 ) => false
-        requires BUF1 =/=K BUF2
-        [simplification]
-
-    // Assume that hashes will never fall within a very small range (using 32 for simplicity)
-    rule keccak ( _ ) ==Int N => false
-        requires N <Int 32
-        [simplification, comm]
-
-    // Assume that no two hashes will be close enough to each other (using a range of 32 for simplicity)
-    rule keccak ( BUF1 ) ==Int ( keccak ( BUF2 ) +Int N ) => false
-        requires 0 <Int N
-         andBool N <Int 32
-        [simplification, comm]
-
-    // Assume that no two hashes will be close enough to each other (using a range of 32 for simplicity)
-    rule ( keccak ( BUF1 ) -Int keccak ( BUF2 ) ) ==Int N => false
-        requires -32 <Int N
-         andBool N <Int 32
-        [simplification]
-
-    rule #lookup ( MAP [ KEY1 <- _ ] , KEY2 ) => #lookup ( MAP , KEY2 )
-        requires KEY1 =/=K KEY2
-        [simplification]
-
-    rule 0 /Word _ => 0
-        [simplification]
-
-    rule ( X *Int A ) ==Int ( Y *Int A ) => X ==Int Y
-        requires A =/=Int 0
-        [simplification]
-
-    rule ( A *Int X ) ==Int ( A *Int Y ) => X ==Int Y
-        requires A =/=Int 0
-        [simplification]
-
-    rule X /Int Y => X divInt Y
-        requires 0 <=Int X
-        [simplification]
-
-    //
-    // Rules
-    //
-
-    // rule [create-valid-enhanced]:
-    //     <k> CREATE VALUE MEMSTART MEMWIDTH
-    //     => #accessAccounts #newAddr(ACCT, NONCE)
-    //     ~> #checkCreate ACCT VALUE
-    //     ~> #create ACCT #newAddr(ACCT, NONCE) VALUE #range(LM, MEMSTART, MEMWIDTH)
-    //     ~> #codeDeposit #newAddr(ACCT, NONCE)
-    //     ...
-    //     </k>
-    //     <id> ACCT </id>
-    //     <localMem> LM </localMem>
-    //     <accounts>
-    //       <account>
-    //         <acctID> ACCT </acctID>
-    //         <nonce> NONCE </nonce>
-    //         ...
-    //       </account>
-    //       ACCOUNTS_REST
-    //     </accounts>
-    //     <schedule> SCHED </schedule>
-    // requires #hasValidInitCode(MEMWIDTH, SCHED)
-    //   ensures notBool ( #newAddr(ACCT, NONCE) ==Int ACCT )
-    //   andBool notBool ( <acctID> #newAddr(ACCT, NONCE) </acctID> in_keys ( ACCOUNTS_REST:AccountCellMap ) )
-    // [priority(30), preserves-definedness]
+    rule [chop-sub]:
+      chop ( Y -Int X:Int ) ==Int 0 => X ==Int Y
+      requires #rangeUInt(256, X) andBool #rangeUInt(256, Y)
+      [simplification, concrete(Y), comm]
 
 endmodule
 

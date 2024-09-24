@@ -15,16 +15,19 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
 
-        _balance[msg.sender] = freshUInt256();
-        vm.assume(0 < _balance[msg.sender]); // TODO: confirm that this is reasonable
-        vm.assume(_balance[msg.sender] < ETH_UPPER_BOUND);
+        uint256 senderBalance = freshUInt256();
+        vm.assume(0 < senderBalance); // TODO: confirm that this is reasonable
+        vm.assume(senderBalance < ETH_UPPER_BOUND);
+        _balance[msg.sender] = senderBalance;
 
-        _redemptionTimestamp = freshUInt256();
-        vm.assume(block.timestamp < _redemptionTimestamp); // TODO: confirm that this is reasonable
-        vm.assume(_redemptionTimestamp < TIME_UPPER_BOUND);
+        uint256 redemptionTimestamp = freshUInt256();
+        vm.assume(block.timestamp < redemptionTimestamp); // TODO: confirm that this is reasonable
+        vm.assume(redemptionTimestamp < TIME_UPPER_BOUND);
+        _redemptionTimestamp = redemptionTimestamp;
 
-        _redemptionValue = freshUInt256();
-        vm.assume(_redemptionValue < ETH_UPPER_BOUND);
+        uint256 redemptionValue = freshUInt256();
+        vm.assume(redemptionValue < ETH_UPPER_BOUND);
+        _redemptionValue = redemptionValue;
     }
 
     function decimals() public view virtual returns (uint8) {
