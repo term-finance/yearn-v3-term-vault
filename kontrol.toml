@@ -16,8 +16,8 @@ max-depth                  = 100000
 max-iterations             = 10000
 reinit                     = true
 cse                        = false
-workers                    = 6
-max-frontier-parallel      = 6
+workers                    = 1
+max-frontier-parallel      = 1
 maintenance-rate           = 24
 assume-defined             = true
 no-log-rewrites            = true
@@ -26,7 +26,7 @@ failure-information        = true
 counterexample-information = true
 minimize-proofs            = false
 fail-fast                  = true
-smt-timeout                = 64000
+smt-timeout                = 5000
 smt-retry-limit            = 2
 break-every-step           = false
 break-on-jumpi             = false
@@ -39,15 +39,15 @@ run-constructor            = false
 bmc-depth                  = 1
 match-test                 = [
         #"RepoTokenListTest.testGetCumulativeDataEmpty",
-        "RepoTokenListTest.testGetCumulativeDataSymbolic",
+        #"RepoTokenListTest.testGetCumulativeDataSymbolic",
         #"RepoTokenListTest.testGetPresentValueEmpty",
         #"RepoTokenListTest.testGetPresentValueSymbolic",
         #"TermAuctionListTest.testGetCumulativeDataEmpty",
         #"TermAuctionListTest.testGetCumulativeDataSymbolic",
         #"TermAuctionListTest.testGetPresentValueEmpty",
-        #"TermAuctionListTest.testGetPresentValueSymbolic",
+        "TermAuctionListTest.testGetPresentValueSymbolic",
     ]
-#bug-report                 = 'bug-report.tar'# disabled by default
+bug-report                 = 'bug-report-present-value.tar'# disabled by default
 ast                        = true
 smt-tactic                 = '(check-sat-using smt)'
 
