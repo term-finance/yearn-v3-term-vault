@@ -120,6 +120,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         address newTermController
     ) external onlyManagement {
         require(newTermController != address(0));
+        require(ITermController(newTermController).getProtocolReserveAddress() != address(0));
         address current = address(currTermController);
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
             current,
@@ -136,11 +137,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function setDiscountRateAdapter(
         address newAdapter
     ) external onlyManagement {
+        ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+        require(address(newDiscountRateAdapter.TERM_CONTROLLER()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
             address(discountRateAdapter),
             newAdapter
         );
-        discountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+        discountRateAdapter = newDiscountRateAdapter;
     }
 
     /**
@@ -190,7 +193,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @notice Set the markup that the vault will receive in excess of the oracle rate
      * @param newDiscountRateMarkup The new auction rate markup
      */
-    function setdiscountRateMarkup(
+    function setDiscountRateMarkup(
         uint256 newDiscountRateMarkup
     ) external onlyManagement {
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
@@ -199,7 +202,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
         discountRateMarkup = newDiscountRateMarkup;
     }
-
     /**
      * @notice Set the collateral token parameters
      * @param tokenAddr The address of the collateral token to be accepted
@@ -428,12 +430,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenHoldingValue(
         address repoToken
     ) public view returns (uint256) {
-        return 
-            repoTokenListData.getPresentValue(
-                discountRateAdapter,
-                PURCHASE_TOKEN_PRECISION,
-                repoToken
-            ) +
+        uint256 repoTokenHoldingPV;
+        if (repoTokenListData.discountRates[repoToken] != 0) {
+            repoTokenHoldingPV = calculateRepoTokenPresentValue(
+                repoToken,
+                discountRateAdapter.getDiscountRate(repoToken),
+                ITermRepoToken(repoToken).balanceOf(address(this))
+            );
+        } 
+        return             
+            repoTokenHoldingPV +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
@@ -491,8 +497,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             liquidBalance +
             repoTokenListData.getPresentValue(
                 discountRateAdapter,
-                PURCHASE_TOKEN_PRECISION,
-                address(0)
+                PURCHASE_TOKEN_PRECISION
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
