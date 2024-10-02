@@ -19,7 +19,7 @@ contract ForkSetup is ExtendedTest {
     TermVaultEventEmitter internal termVaultEventEmitter;
     TermDiscountRateAdapter internal discountRateAdapter;
     ITermController internal termController;
-    address internal asset;
+    ERC20 internal asset;
     address internal oracleWallet;
     address internal adminWallet;
     address internal devopsWallet;
@@ -39,7 +39,7 @@ contract ForkSetup is ExtendedTest {
         management = 0x3DEE03a09FE9c792c95Ec32C0668F67DC2C1aa11;
 
         // USDC
-        asset = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        asset = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         termController = ITermController(0x21FC7B250CCAeECDb2abb38e04617D1f24D98772);
         discountRateAdapter = new TermDiscountRateAdapter(address(termController), oracleWallet);
 
@@ -126,5 +126,8 @@ contract ForkSetup is ExtendedTest {
 
         vm.prank(management);
         multiStratVault.update_max_debt_for_strategy(address(strategy), type(uint256).max);
+
+        vm.prank(management);
+        multiStratVault.set_deposit_limit(type(uint256).max);
     }
 }
