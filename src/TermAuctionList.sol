@@ -206,6 +206,8 @@ library TermAuctionList {
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
                 delete listData.offers[current];
+                current = prev;
+
             }
 
             if (insertRepoToken) {

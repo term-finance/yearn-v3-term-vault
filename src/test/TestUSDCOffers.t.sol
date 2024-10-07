@@ -109,6 +109,31 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance());
     }
 
+    function testDeleteThreeOffers() public {
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), 1e6);
+        bytes32 offerId3 = _submitOffer(bytes32("offer id hash 3"), 1e6);
+
+        bytes32[] memory offerIds = new bytes32[](3);
+        offerIds[0] = offerId1;
+        offerIds[1] = offerId2;
+        offerIds[2] = offerId3;
+
+        vm.expectRevert("!management");
+        termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
+
+        vm.prank(management);
+        termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
+
+        bytes32[] memory offers = termStrategy.pendingOffers();        
+
+        assertEq(offers.length, 0);
+
+        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance);
+        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance());
+    }
+
+
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
     uint256 public constant RATE_PRECISION = 1e18;
     
