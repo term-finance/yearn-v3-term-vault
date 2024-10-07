@@ -200,7 +200,7 @@ library TermAuctionList {
                      try offer.offerLocker.unlockOffers(offerIds) { // unlocking offer in this scenario withdraws offer amount
                      
                      } catch {
-                         // do nothing
+                        removeNode = false;
                      }
                 }
             }
