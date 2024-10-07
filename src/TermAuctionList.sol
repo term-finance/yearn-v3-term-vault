@@ -197,7 +197,11 @@ library TermAuctionList {
                     removeNode = true;                  
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
-                    offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer amount
+                     try offer.offerLocker.unlockOffers(offerIds) { // unlocking offer in this scenario withdraws offer amount
+                     
+                     } catch {
+                         // do nothing
+                     }
                 }
             }
 
