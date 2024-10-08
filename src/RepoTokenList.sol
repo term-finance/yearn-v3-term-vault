@@ -243,7 +243,7 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
-            if (getRepoTokenMaturity(current) <= block.timestamp) {
+            if (getRepoTokenMaturity(current) < block.timestamp) {
                 bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
@@ -337,7 +337,6 @@ library RepoTokenList {
      * @param repoToken The repoToken to validate and insert
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
-     * @return validRepoToken Whether the repoToken is valid
      * @return discountRate The discount rate to be applied to the validated repoToken 
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken     
      */
@@ -346,14 +345,14 @@ library RepoTokenList {
         ITermRepoToken repoToken,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
-    ) internal returns (bool validRepoToken, uint256 discountRate, uint256 redemptionTimestamp) {
+    ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
         discountRate = listData.discountRates[address(repoToken)];
         if (discountRate != INVALID_AUCTION_RATE) {
             (redemptionTimestamp, , ,) = repoToken.config();
 
             // skip matured repoTokens
             if (redemptionTimestamp < block.timestamp) {
-                return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
+                revert InvalidRepoToken(address(repoToken));
             }
 
             uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
@@ -369,13 +368,11 @@ library RepoTokenList {
 
             (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
             if (!isRepoTokenValid) {
-                return (false, discountRate, redemptionTimestamp);
+                revert InvalidRepoToken(address(repoToken));
             }
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
         }
-
-        return (true, discountRate, redemptionTimestamp);
     }
 
     /**
@@ -397,8 +394,6 @@ library RepoTokenList {
             return;
         }
 
-        uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
-
         address prev;
         while (current != NULL_NODE) {
 
@@ -408,6 +403,7 @@ library RepoTokenList {
             }
 
             uint256 currentMaturity = getRepoTokenMaturity(current);
+            uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
 
             // Insert repoToken before current if its maturity is less than or equal
             if (maturityToInsert < currentMaturity) {
