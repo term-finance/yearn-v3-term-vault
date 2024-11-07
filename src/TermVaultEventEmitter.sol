@@ -31,9 +31,9 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         _grantRole(DEVOPS_ROLE, devopsWallet_);
     }
 
-    function pairVaultContract(address vaultContract) external onlyRole(ADMIN_ROLE){
+    function pairVaultContract(address vaultContract, address strategyContract) external onlyRole(ADMIN_ROLE){
         _grantRole(VAULT_CONTRACT, vaultContract);
-        emit VaultContractPaired(vaultContract);
+        emit VaultContractPaired(vaultContract, strategyContract);
     }
 
     function emitTermControllerUpdated(address oldController, address newController) external onlyRole(VAULT_CONTRACT) {
