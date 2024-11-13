@@ -99,6 +99,7 @@ interface IDAOFactory {
     ) external returns (address createdDao);
 }
 
+// Sepolia deployments
 contract Deployments {
     address public constant SAFE_PROXY_FACTORY =
         0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67;
@@ -130,11 +131,12 @@ contract GnosisDeployer is Deployments {
     address internal constant SENTINEL_OWNERS = address(0x1);
 
     constructor() {
-        /*uint chainId;
+        // verify that we are using the correct Deployments base contract
+        uint chainId;
         assembly {
             chainId := chainid()
         }
-        require(chainId == CHAIN_ID); */
+        require(chainId == CHAIN_ID);
     }
 
     function deploySafe(
