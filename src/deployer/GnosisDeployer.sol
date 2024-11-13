@@ -170,7 +170,7 @@ contract GnosisDeployer is Deployments {
 
         // Create ownerless safe
         owners[0] = address(this);
-        // using address(this) for enableModule, will transfer to safeOwner later
+        // using address(this) for enableModule, will transfer to DEAD_OWNER later
         address ownerlessSafe = ISafeProxyFactory(SAFE_PROXY_FACTORY)
             .createProxyWithNonce(
                 SAFE_IMPL,
