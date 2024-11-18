@@ -128,6 +128,7 @@ contract DeployStrategy is Script {
 
     function run() external {
         uint256 deployerPK = vm.envUint("PRIVATE_KEY");
+        uint256 governorDeployerPK = vm.envUint("GOVERNOR_DEPLOYER_KEY");
 
         // Set up the RPC URL (optional if you're using the default foundry config)
         string memory rpcUrl = vm.envString("RPC_URL");
@@ -156,7 +157,6 @@ contract DeployStrategy is Script {
         console.log("set pending management");
         console.log(strategyManagement);
 
-
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
             console.log("paired strategy contract with event emitter");
@@ -169,12 +169,14 @@ contract DeployStrategy is Script {
         address asset = vm.envAddress("ASSET_ADDRESS");
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
-        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envAddress("TERM_CONTROLLER_ADDRESS");
         uint256 discountRateMarkup = vm.envUint("DISCOUNT_RATE_MARKUP");
+        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         uint256 timeToMaturityThreshold = vm.envUint("TIME_TO_MATURITY_THRESHOLD");
         uint256 repoTokenConcentrationLimit = vm.envUint("REPOTOKEN_CONCENTRATION_LIMIT");
         uint256 newRequiredReserveRatio = vm.envUint("NEW_REQUIRED_RESERVE_RATIO");
+
+        checkUnderlyingVaultAsset(asset, yearnVaultAddress);
 
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
@@ -191,6 +193,11 @@ contract DeployStrategy is Script {
 
         return params;
 
+    }
+
+    function checkUnderlyingVaultAsset(address asset, address underlyingVault) internal {
+        address underlyingAsset = IERC4626(underlyingVault).asset();
+        require(underlyingAsset == asset, "Underlying asset does not match asset");
     }
 
     function _deployEventEmitter() internal returns(TermVaultEventEmitter eventEmitter) {
