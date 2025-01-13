@@ -86,7 +86,7 @@ if [ "${create_pr}" = "true" ]; then
   git switch -c "listings-release-${release_version}"
   git add .
   git commit -m "${release_name}" -m "${release_body}"
-  git push -f origin "listings-release-${release_name}"
+  git push -f origin "listings-release-${release_version}"
 
   # Create a PR for the new branch to the parent branch
   gh pr --repo term-finance/term-finance-developer-docs create \
