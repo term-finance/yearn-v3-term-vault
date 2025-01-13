@@ -59,19 +59,19 @@ fi
 
 # Update SUMMARY.md
 sed -i '' '/<!-- __MARKER_VAULTS_SOLIDITY_API_VERSIONS__ -->/r /dev/stdin' "${docs_repo_dir}/SUMMARY.md" << EOF
-  * [Solidity API - ${release_version}](periphery-contracts/curated-vaults/${release_version}/README.md)
-    * [RepoTokenList.sol#RepoTokenList](periphery-contracts/curated-vaults/${release_version}/RepoTokenList.md)
-    * [RepoTokenList.sol#RepoTokenListData](periphery-contracts/curated-vaults/${release_version}/RepoTokenListData.md)
-    * [RepoTokenList.sol#RepoTokenListNode](periphery-contracts/curated-vaults/${release_version}/RepoTokenListNode.md)
-    * [RepoTokenUtils.sol#RepoTokenUtils](periphery-contracts/curated-vaults/${release_version}/RepoTokenUtils.md)
-    * [Strategy.sol#Strategy](periphery-contracts/curated-vaults/${release_version}/Strategy.md)
-    * [TermAuctionList.sol#TermAuctionList](periphery-contracts/curated-vaults/${release_version}/TermAuctionList.md)
-    * [TermAuctionList.sol#PendingOffer](periphery-contracts/curated-vaults/${release_version}/PendingOffer.md)
-    * [TermAuctionList.sol#TermAuctionListData](periphery-contracts/curated-vaults/${release_version}/TermAuctionListData.md)
-    * [TermAuctionList.sol#TermAuctionListNode](periphery-contracts/curated-vaults/${release_version}/TermAuctionListNode.md)
-    * [TermDiscountRateAdapter.sol#TermDiscountRateAdapter](periphery-contracts/curated-vaults/${release_version}/TermDiscountRateAdapter.md)
-    * [TermVaultEventEmitter.sol#TermVaultEventEmitter](periphery-contracts/curated-vaults/${release_version}/TermVaultEventEmitter.md)
-    * [TermFinanceVaultWrappedVotesToken.sol#TermFinanceVaultWrappedVotesToken](periphery-contracts/curated-vaults/${release_version}/TermFinanceVaultWrappedVotesToken.md)
+  * [Solidity API - ${release_version}](periphery-contracts/curated-vaults/solidity-api-${release_version}/README.md)
+    * [RepoTokenList.sol#RepoTokenList](periphery-contracts/curated-vaults/solidity-api-${release_version}/repotokenlist.sol-repotokenlist.md)
+    * [RepoTokenList.sol#RepoTokenListData](periphery-contracts/curated-vaults/solidity-api-${release_version}/repotokenlist.sol-repotokenlistdata.md)
+    * [RepoTokenList.sol#RepoTokenListNode](periphery-contracts/curated-vaults/solidity-api-${release_version}/repotokenlist.sol-repotokenlistnode.md)
+    * [RepoTokenUtils.sol#RepoTokenUtils](periphery-contracts/curated-vaults/solidity-api-${release_version}/repotokenutils.sol-repotokenutils.md)
+    * [Strategy.sol#Strategy](periphery-contracts/curated-vaults/solidity-api-${release_version}/strategy.sol-strategy.md)
+    * [TermAuctionList.sol#TermAuctionList](periphery-contracts/curated-vaults/solidity-api-${release_version}/termauctionlist.sol-termauctionlist.md)
+    * [TermAuctionList.sol#PendingOffer](periphery-contracts/curated-vaults/solidity-api-${release_version}/termauctionlist.sol-pendingoffer.md)
+    * [TermAuctionList.sol#TermAuctionListData](periphery-contracts/curated-vaults/solidity-api-${release_version}/termauctionlist.sol-termauctionlistdata.md)
+    * [TermAuctionList.sol#TermAuctionListNode](periphery-contracts/curated-vaults/solidity-api-${release_version}/termauctionlist.sol-termauctionlistnode.md)
+    * [TermDiscountRateAdapter.sol#TermDiscountRateAdapter](periphery-contracts/curated-vaults/solidity-api-${release_version}/termdiscountrateadapter.sol-termdiscountrateadapter.md)
+    * [TermVaultEventEmitter.sol#TermVaultEventEmitter](periphery-contracts/curated-vaults/solidity-api-${release_version}/termvaulteventemitter.sol-termvaulteventemitter.md)
+    * [TermFinanceVaultWrappedVotesToken.sol#TermFinanceVaultWrappedVotesToken](periphery-contracts/curated-vaults/solidity-api-${release_version}/termfinancevaultwrappedvotestoken.sol-termfinancevaultwrappedvotestoken.md)
 EOF
 
 # Only run the following if `create_pr` is set to "true"
