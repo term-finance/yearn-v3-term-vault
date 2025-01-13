@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write    # Required for checkout and pushing changes
+  pull-requests: write    # Required for creating PRs
 jobs:
   publish-docs:
     runs-on: ubuntu-latest
