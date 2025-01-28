@@ -62,18 +62,18 @@ jobs:
           GOVERNANCE_ROLE: ${{ vars.GOVERNANCE_FACTORY }}
           VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
           VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
-          ASSET_ADDRESS: ${{ vars.ASSET_ADDRESS }}
-          VAULT_NAME: ${{ vars.VAULT_NAME }}
-          VAULT_SYMBOL: ${{ vars.VAULT_SYMBOL }}
-          PROFIT_MAX_UNLOCK_TIME: ${{ vars.PROFIT_MAX_UNLOCK_TIME }}
+          ASSET_ADDRESS: ${{ github.event.inputs.asset }}
+          VAULT_NAME: ${{ github.event.inputs.vaultName }}
+          VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
           ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
           KEEPER_ADDRESS: ${{ vars.KEEPER_ADDRESS }}
           STRATEGY_ADDER: ${{ vars.STRATEGY_ADDER }}
-          DEPOSIT_LIMIT: ${{ vars.DEPOSIT_LIMIT }}
-          DEFAULT_PERFORMANCE: ${{ vars.DEFAULT_PERFORMANCE }}
-          DEFAULT_MAX_FEE: ${{ vars.DEFAULT_MAX_FEE }}
-          DEFAULT_MAX_GAIN: ${{ vars.DEFAULT_MAX_GAIN }}
-          DEFAULT_MAX_LOSS: ${{ vars.DEFAULT_MAX_LOSS }}
+          DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
+          DEFAULT_PERFORMANCE: ${{ github.event.inputs.defaultMaxPerformance }}
+          DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
+          DEFAULT_MAX_GAIN: ${{ github.event.inputs.defaultMaxGain }}
+          DEFAULT_MAX_LOSS: ${{ github.event.inputs.defaultMaxLoss }}
           FEE_RECIPIENT: ${{ vars.FEE_RECIPIENT }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
