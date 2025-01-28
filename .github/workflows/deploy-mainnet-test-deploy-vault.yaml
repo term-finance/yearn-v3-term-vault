@@ -67,7 +67,7 @@ jobs:
           VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
           PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
           ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
-          KEEPER_ADDRESS: ${{ vars.KEEPER_ADDRESS }}
+          KEEPER_ADDRESS: ${{ vars.KEEPER }}
           STRATEGY_ADDER: ${{ vars.STRATEGY_ADDER }}
           DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
           DEFAULT_PERFORMANCE: ${{ github.event.inputs.defaultMaxPerformance }}
