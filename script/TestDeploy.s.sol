@@ -135,7 +135,6 @@ contract TestDeploy is Script {
     function _deployStrategy(string memory name) internal returns (Strategy) {
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
         address keeper = vm.envAddress("KEEPER_ADDRESS");
-        address feeRecipient = vm.envAddress("FEE_RECIPIENT");
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
 
@@ -194,23 +193,9 @@ contract TestDeploy is Script {
         ITokenizedStrategy(address(strategy)).setProfitMaxUnlockTime(profitMaxUnlockTime);
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         ITokenizedStrategy(address(strategy)).setKeeper(keeper);
-        ITokenizedStrategy(address(strategy)).setPerformanceFeeRecipient(feeRecipient);
         strategy.setPendingGovernor(governorRoleAddress);
         
         eventEmitter.pairVaultContract(address(strategy));
-
-        // Configure collateral tokens if needed
-        string memory collateralTokensStr = vm.envString("COLLATERAL_TOKEN_ADDRESSES");
-        string memory ratiosStr = vm.envString("MIN_COLLATERAL_RATIOS");
-        
-        if (bytes(collateralTokensStr).length > 0) {
-            address[] memory collateralTokens = stringToAddressArray(collateralTokensStr);
-            uint256[] memory minCollateralRatios = stringToUintArray(ratiosStr);
-            
-            for (uint256 i = 0; i < collateralTokens.length; i++) {
-                strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);
-            }
-        }
     }
 
     function _addStrategiesToVault() internal {
