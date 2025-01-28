@@ -1,0 +1,92 @@
+name: "[mainnet-deploy] deploy governance for vault"
+on:
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: 'Asset address'
+        required: true
+        default: '0x'
+      vaultName:
+        description: 'Yearn vault name'
+        required: true
+        default: '0x'
+      vaultSymbol:
+        description: 'Yearn vault symbol'
+        required: true
+        default: '0x'
+      profitMaxUnlockTime:
+        description: 'Profit max unlock time'
+        required: true
+        default: '0'
+      depositLimit:
+        description: 'Deposit limit'
+        required: false
+        default: '0'
+      defaultPerformance:
+        description: 'Default performance fee'
+        required: false
+        default: '0'
+      defaultMaxFee:
+        description: 'Default max fee'
+        required: false
+        default: '0'
+      defaultMaxGain:
+        description: 'Default max gain'
+        required: false
+        default: '0'
+      defaultMaxLoss:
+        description: 'Default max loss'
+        required: false
+        default: '0'
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: mainnet
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge script script/TestDeploy.s.sol:TestDeploy --rpc-url $RPC_URL --broadcast --gas-price  500000000000   --verify --verbosity 4
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.GOVERNANCE_DEPLOYER_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          PROPOSER: ${{ github.event.inputs.proposer }}
+          VAULT: ${{ github.event.inputs.vault }}
+          ACCOUNTANT: ${{ github.event.inputs.accountant }}
+          GOVERNOR: ${{ github.event.inputs.governorRoleAddress }}
+          GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
+          VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
+          ASSET_ADDRESS: ${{ vars.ASSET_ADDRESS }}
+          VAULT_NAME: ${{ vars.VAULT_NAME }}
+          VAULT_SYMBOL: ${{ vars.VAULT_SYMBOL }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ vars.PROFIT_MAX_UNLOCK_TIME }}
+          ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
+          KEEPER_ADDRESS: ${{ vars.KEEPER_ADDRESS }}
+          STRATEGY_ADDER: ${{ vars.STRATEGY_ADDER }}
+          DEPOSIT_LIMIT: ${{ vars.DEPOSIT_LIMIT }}
+          DEFAULT_PERFORMANCE: ${{ vars.DEFAULT_PERFORMANCE }}
+          DEFAULT_MAX_FEE: ${{ vars.DEFAULT_MAX_FEE }}
+          DEFAULT_MAX_GAIN: ${{ vars.DEFAULT_MAX_GAIN }}
+          DEFAULT_MAX_LOSS: ${{ vars.DEFAULT_MAX_LOSS }}
+          FEE_RECIPIENT: ${{ vars.FEE_RECIPIENT }}
+          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+          DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
+          STRATEGY_MANAGEMENT_ADDRESS: ${{ vars.STRATEGY_MANAGEMENT_ADDRESS }}
+          YEARN_VAULT_ADDRESS: ${{ vars.YEARN_VAULT_ADDRESS }}
+          DISCOUNT_RATE_ADAPTER_ADDRESS: ${{ vars.DISCOUNT_RATE_ADAPTER_ADDRESS }}
+          TERM_CONTROLLER_ADDRESS: ${{ vars.TERM_CONTROLLER_ADDRESS }}
+          DISCOUNT_RATE_MARKUP: ${{ vars.DISCOUNT_RATE_MARKUP }}
+          TIME_TO_MATURITY_THRESHOLD: ${{ vars.TIME_TO_MATURITY_THRESHOLD }}
+          REPOTOKEN_CONCENTRATION_LIMIT: ${{ vars.REPOTOKEN_CONCENTRATION_LIMIT }}
+          NEW_REQUIRED_RESERVE_RATIO: ${{ vars.NEW_REQUIRED_RESERVE_RATIO }}
+          COLLATERAL_TOKEN_ADDRESSES: ${{ vars.COLLATERAL_TOKEN_ADDRESSES }}
+          MIN_COLLATERAL_RATIOS: ${{ vars.MIN_COLLATERAL_RATIOS }}
