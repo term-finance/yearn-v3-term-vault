@@ -11,7 +11,7 @@ import "../src/Strategy.sol";
 import "../src/TermVaultEventEmitter.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract DeployVaultAndStrategies is Script {
+contract TestDeploy is Script {
     // Vault-related state variables
     IVault public vault;
     Accountant public accountant;
