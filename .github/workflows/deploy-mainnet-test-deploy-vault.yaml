@@ -1,4 +1,4 @@
-name: "[mainnet-deploy] deploy governance for vault"
+name: "[mainnet-deploy] deploy test vault"
 on:
   workflow_dispatch:
     inputs:
