@@ -150,7 +150,6 @@ contract TestDeploy is Script {
             strategy,
             strategyManagement,
             keeper,
-            feeRecipient,
             governorRoleAddress,
             profitMaxUnlockTime
         );
@@ -186,7 +185,6 @@ contract TestDeploy is Script {
         Strategy strategy,
         address strategyManagement,
         address keeper,
-        address feeRecipient,
         address governorRoleAddress,
         uint256 profitMaxUnlockTime
     ) internal {
