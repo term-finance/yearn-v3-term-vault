@@ -59,7 +59,7 @@ jobs:
           RPC_URL: ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          GOVERNANCE_ROLE_ADDRESS: ${{ vars.GOVERNANCE_FACTORY }}
+          GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNANCE_FACTORY }}
           VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
           VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}
