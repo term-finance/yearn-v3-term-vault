@@ -86,11 +86,7 @@ jobs:
           DISCOUNT_RATE_ADAPTER_ADDRESS: ${{ vars.DISCOUNT_RATE_ADAPTER_ADDRESS }}
           TERM_CONTROLLER_ADDRESS: ${{ vars.TERM_CONTROLLER_ADDRESS }}
           DISCOUNT_RATE_MARKUP: ${{ vars.DISCOUNT_RATE_MARKUP }}
-          TIME_TO_MATURITY_THRESHOLD: ${{ vars.TIME_TO_MATURITY_THRESHOLD }}
-          REPOTOKEN_CONCENTRATION_LIMIT: ${{ vars.REPOTOKEN_CONCENTRATION_LIMIT }}
-          NEW_REQUIRED_RESERVE_RATIO: ${{ vars.NEW_REQUIRED_RESERVE_RATIO }}
-          COLLATERAL_TOKEN_ADDRESSES: ${{ vars.COLLATERAL_TOKEN_ADDRESSES }}
+          NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
           MIN_COLLATERAL_RATIOS: ${{ vars.MIN_COLLATERAL_RATIOS }}
-          DISCOUNT_RATE_MARKUP: ${{ vars.DISCOUNT_RATE_MARKUP }}
           TIME_TO_MATURITY_THRESHOLD: ${{ github.event.inputs.timeToMaturityThreshold }}
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
