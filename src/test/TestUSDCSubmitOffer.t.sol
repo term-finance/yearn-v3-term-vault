@@ -65,6 +65,7 @@ contract TestUSDCSubmitOffer is Setup {
             repoToken1WeekAuction,
             address(repoToken1Week),
             idHash,
+            100,
             bytes32("test price"),
             offerAmount
         );
@@ -74,6 +75,7 @@ contract TestUSDCSubmitOffer is Setup {
             repoToken1WeekAuction,
             address(repoToken1Week),
             idHash,
+            100,
             bytes32("test price"),
             offerAmount
         );
@@ -109,6 +111,7 @@ contract TestUSDCSubmitOffer is Setup {
             repoToken1WeekAuction,
             address(repoToken1Week),
             offerId1,
+            100,
             bytes32("test price"),
             offerAmount
         );
@@ -145,6 +148,7 @@ contract TestUSDCSubmitOffer is Setup {
             repoToken1WeekAuction,
             address(repoToken1Week),
             offerId1,
+            100,
             bytes32("test price"),
             60e6
         );
@@ -155,6 +159,7 @@ contract TestUSDCSubmitOffer is Setup {
             repoToken1WeekAuction,
             address(repoToken1Week),
             offerId1,
+            100,
             bytes32("test price"),
             40e6
         );
