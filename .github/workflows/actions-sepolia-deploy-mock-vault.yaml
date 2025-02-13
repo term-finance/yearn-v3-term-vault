@@ -34,11 +34,12 @@ jobs:
       - name: Deploy Mock Vault
         run: |
           forge create lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock \
-          --rpc-url "$RPC_URL" \
-          --private-key "$PRIVATE_KEY" \
-          --constructor-args "$VAULT_TOKEN" \
-          --etherscan-api-key "$ETHERSCAN_API_KEY" \
-          --verify-broadcast
+            --rpc-url "$RPC_URL" \
+            --private-key "$PRIVATE_KEY" \
+            --constructor-args "$VAULT_TOKEN" \
+            --etherscan-api-key "$ETHERSCAN_API_KEY" \
+            --broadcast \
+            --verify
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
