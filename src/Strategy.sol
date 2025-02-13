@@ -1184,8 +1184,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 totalAssetValue = _totalAssetValue(liquidBalance);
         require(totalAssetValue > 0);
 
-        uint256 discountRate = _getDiscountRate(repoToken);
-
         // Calculate the repoToken amount in base asset precision
         uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
             .getNormalizedRepoTokenAmount(
@@ -1202,7 +1200,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             repoTokenAmountInBaseAssetPrecision,
             PURCHASE_TOKEN_PRECISION,
             redemptionTimestamp,
-            discountRate + strategyState.discountRateMarkup
+            _getDiscountRate(repoToken) + strategyState.discountRateMarkup
         );
 
         // Ensure the liquid balance is sufficient to cover the proceeds
@@ -1294,7 +1292,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function _usdsRate() internal view returns (uint256) {
-        return (IUsds(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD).ssr() ** (360 days) - 1e27) / 1e9;
+        return (IUsds(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD).ssr() ** 360 days - 1e27) / 1e9;
     }
 
     /*//////////////////////////////////////////////////////////////
