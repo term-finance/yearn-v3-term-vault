@@ -39,7 +39,8 @@ jobs:
             --constructor-args "$VAULT_TOKEN" \
             --etherscan-api-key "$ETHERSCAN_API_KEY" \
             --broadcast \
-            --verify
+            --verify \
+            --legacy
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
