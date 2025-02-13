@@ -46,4 +46,4 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           VAULT_TOKEN: ${{ github.event.inputs.vaultToken }}
-          FOUNDRY_DRY_RUN: false 
+          FOUNDRY_DRY_RUN: 0 
