@@ -89,7 +89,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     error AuctionNotOpen();
     error ZeroPurchaseTokenAmount();
     error OfferNotFound();
-    error OfferPriceLow();
+    error PriceLow();
 
     bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
@@ -951,7 +951,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _usdsRate()) {
-            revert OfferPriceLow();
+            revert PriceLow();
         }
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
