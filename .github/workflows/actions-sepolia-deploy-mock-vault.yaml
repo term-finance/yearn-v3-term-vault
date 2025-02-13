@@ -19,8 +19,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
       - run: forge install
       - run: forge build
       - run: forge tree
