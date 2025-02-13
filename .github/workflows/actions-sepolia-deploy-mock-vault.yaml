@@ -40,6 +40,7 @@ jobs:
           --private-key "$PRIVATE_KEY" \
           --constructor-args "$VAULT_TOKEN" \
           --etherscan-api-key "$ETHERSCAN_API_KEY" \
+          --broadcast \
           --verify
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
