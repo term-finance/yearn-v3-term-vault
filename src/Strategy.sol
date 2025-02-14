@@ -1292,7 +1292,32 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function _usdsRate() internal view returns (uint256) {
-        return (IUsds(0x221bC2a2688020A86241FB12b81500e19CC11d8a).ssr() ** 360 days - 1e27) / 1e9;
+        return (_rpow(IUsds(0x221bC2a2688020A86241FB12b81500e19CC11d8a).ssr(), 360 days) - 1e27) / 1e9;
+    }
+
+    function _rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
+        assembly {
+            let RAY := exp(10,27)
+            switch x case 0 {switch n case 0 {z := RAY} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := RAY } default { z := x }
+                let half := div(RAY, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, RAY)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, RAY)
+                    }
+                }
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
