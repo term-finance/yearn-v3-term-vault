@@ -1292,7 +1292,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function _usdsRate() internal view returns (uint256) {
-        return (_rpow(IUsds(0x221bC2a2688020A86241FB12b81500e19CC11d8a).ssr(), 360 days) - 1e27) / 1e9;
+        return (_rpow(IUsds(0x5A8ef185908Aa269dbB31BB9B08E2D5B041F4ff2).ssr(), 360 days) - 1e27) / 1e9;
     }
 
     function _rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
