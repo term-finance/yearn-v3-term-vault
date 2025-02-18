@@ -1298,22 +1298,23 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
    function _usdsRate() internal returns (uint256) {
         uint256 ssrRate = IUsds(0x5A8ef185908Aa269dbB31BB9B08E2D5B041F4ff2).ssr();
 
-        // x = ssr/RAY - 1 in RAY precision
+        // x = ssr/RAY - 1 in RAY precision (27 decimals)
         int256 x = int256(ssrRate - 1e27);
         
-        // n = seconds in a year
+        // n = seconds in a year (no decimals)
         int256 n = 360 days; 
         
-        // First term: nx, multiply by extra RAY to maintain precision
-        int256 term1 = (n * x * 1e27) / 1e27;  // Now in 27 decimals
+        // First term: nx (result in 27 decimals)
+        int256 term1 = n * x;
         
-        // Second term: n(n-1)x^2/2, multiply by extra RAY
-        int256 term2 = (n * (n-1) * ((x * x) / 1e27) * 1e27) / (2 * 1e27);  // Now in 27 decimals
+        // Second term: n(n-1)x^2/2 
+        int256 term2 = (n * (n-1) * (x * x / 1e27)) / 2;
         
-        // Third term: n(n-1)(n-2)x^3/6, already in 27 decimals due to x^3
-        int256 term3 = (n * (n-1) * (n-2) * ((x * x) / 1e27 * x) / 1e27) / (6 * 1e27);
+        // Third term: n(n-1)(n-2)x^3/6
+        // Do all multiplications first
+        int256 term3 = (n * (n-1) * (n-2) * x * x * x) / (6 * 1e27 * 1e27);
         
-        // Convert to 18 decimals (divide by 1e9 since 27-18 = 9)
+        // Convert from 27 to 18 decimals
         uint256 answer = uint256(term1 + term2 + term3) / 1e9;
         emit USDSRatio(answer);
         return answer;
