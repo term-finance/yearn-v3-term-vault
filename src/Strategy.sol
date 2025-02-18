@@ -1292,33 +1292,27 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function _usdsRate() internal view returns (uint256) {
-        return (_rpow(IUsds(0x5A8ef185908Aa269dbB31BB9B08E2D5B041F4ff2).ssr(), 360 days) - 1e27) / 1e9;
+        uint256 ssrRate = IUsds(0x5A8ef185908Aa269dbB31BB9B08E2D5B041F4ff2).ssr();
+
+        // x = ssr/RAY - 1 in RAY precision
+        int256 x = int256(ssrRate - 1e27);
+        
+        // n = seconds in a year
+        int256 n = 360 days; 
+        
+        // First term: nx
+        int256 term1 = (n * x) / 1e27;
+        
+        // Second term: n(n-1)x^2/2
+        int256 term2 = (n * (n-1) * ((x * x) / 1e27)) / (2 * 1e27);
+        
+        // Third term: n(n-1)(n-2)x^3/6
+        int256 term3 = (n * (n-1) * (n-2) * ((x * x) / 1e27 * x) / 1e27) / (6 * 1e27);
+        
+        // APY = (1 + term1 + term2 + term3) - 1 = term1 + term2 + term3
+        return uint256(term1 + term2 + term3) / 1e9;
     }
 
-    function _rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
-        assembly {
-            let RAY := exp(10,27)
-            switch x case 0 {switch n case 0 {z := RAY} default {z := 0}}
-            default {
-                switch mod(n, 2) case 0 { z := RAY } default { z := x }
-                let half := div(RAY, 2)  // for rounding.
-                for { n := div(n, 2) } n { n := div(n,2) } {
-                    let xx := mul(x, x)
-                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
-                    let xxRound := add(xx, half)
-                    if lt(xxRound, xx) { revert(0,0) }
-                    x := div(xxRound, RAY)
-                    if mod(n,2) {
-                        let zx := mul(z, x)
-                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
-                        let zxRound := add(zx, half)
-                        if lt(zxRound, zx) { revert(0,0) }
-                        z := div(zxRound, RAY)
-                    }
-                }
-            }
-        }
-    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
