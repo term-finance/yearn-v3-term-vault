@@ -956,6 +956,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             return offerIds;
             revert OfferPriceLow();
         }
+        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
