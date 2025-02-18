@@ -954,7 +954,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
 
         if (offerPrice < _usdsRate()) {
             return offerIds;
-            revert OfferPriceLow();
+            //revert OfferPriceLow();
         }
         return offerIds;
 
