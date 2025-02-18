@@ -1312,7 +1312,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         
         // Third term: n(n-1)(n-2)x^3/6
         // Do all multiplications first
-        int256 term3 = (n * (n-1) * (n-2) * x * x * x) / (6 * 1e27 * 1e27);
+        int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
         // Convert from 27 to 18 decimals
         uint256 answer = uint256(term1 + term2 + term3) / 1e9;
