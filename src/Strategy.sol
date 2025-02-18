@@ -39,6 +39,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
+    event USDSRatio(uint256 ratio);
+
     /**
      * @notice Constructor to initialize the Strategy contract
      * @param _asset The address of the asset
@@ -951,6 +953,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _usdsRate()) {
+            return offerIds;
             revert OfferPriceLow();
         }
 
@@ -1285,13 +1288,13 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
-    function _getDiscountRate(address repoToken) internal view returns (uint256) {
+    function _getDiscountRate(address repoToken) internal  returns (uint256) {
         uint256 usdsRate = _usdsRate();
         uint256 discountRateAuction = strategyState.discountRateAdapter.getDiscountRate(repoToken);
         return usdsRate > discountRateAuction ? usdsRate : discountRateAuction;
     }
 
-    function _usdsRate() internal view returns (uint256) {
+    function _usdsRate() internal  returns (uint256) {
         uint256 ssrRate = IUsds(0x5A8ef185908Aa269dbB31BB9B08E2D5B041F4ff2).ssr();
 
         // x = ssr/RAY - 1 in RAY precision
@@ -1310,7 +1313,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 term3 = (n * (n-1) * (n-2) * ((x * x) / 1e27 * x) / 1e27) / (6 * 1e27);
         
         // APY = (1 + term1 + term2 + term3) - 1 = term1 + term2 + term3
-        return uint256(term1 + term2 + term3) / 1e9;
+        uint256 answer = uint256(term1 + term2 + term3) / 1e9;
+        emit USDSRatio(answer);
+        return answer;
     }
 
 
