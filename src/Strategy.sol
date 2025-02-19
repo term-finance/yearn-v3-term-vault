@@ -78,6 +78,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 repoTokenConcentrationLimit;
     }
 
+    event UsdsRate(uint256 rate);
+
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -948,8 +950,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _usdsRate()) {
-            revert OfferPriceLow();
+            //revert OfferPriceLow();
         }
+        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -1282,14 +1285,14 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
-    function _getDiscountRate(address repoToken) internal view  returns (uint256) {
-        uint256 usdsRate = _usdsRate();
+    function _getDiscountRate(address repoToken) internal  returns (uint256) {
+        uint256 usdsRate = _adjusteduUsdsRate();
         uint256 discountRateAuction = strategyState.discountRateAdapter.getDiscountRate(repoToken);
         return usdsRate > discountRateAuction ? usdsRate : discountRateAuction;
     }
 
-   function _usdsRate() internal view returns (uint256) {
-        uint256 ssrRate = IUsds(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD).ssr();
+   function _adjustedUsdsRate() internal returns (uint256) {
+        uint256 ssrRate = IUsds(0x7153b940910d1e8d2e24c39c59c1cc3cdbaa4d9e).ssr();
 
         // x = ssr/RAY - 1 in RAY precision (27 decimals)
         int256 x = int256(ssrRate - 1e27);
@@ -1307,8 +1310,11 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         // Do all multiplications first
         int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
-        // Convert from 27 to 18 decimals
-        return uint256(term1 + term2 + term3) / 1e9;
+        // Convert from 27 to 18 decimals and then adjust to 360 day Term Finance APY
+        uint256 answer = uint256(term1 + term2 + term3) * 3600 / (1e9 * 3625);
+
+        emit UsdsRate(answer);
+        return answer;
     }
 
 
