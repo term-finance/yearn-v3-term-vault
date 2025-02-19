@@ -78,8 +78,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 repoTokenConcentrationLimit;
     }
 
-    event UsdsRate(uint256 rate);
-
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -431,6 +429,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 amount
     )
         external
+        view
         returns (
             uint256 simulatedWeightedMaturity,
             uint256 simulatedRepoTokenConcentrationRatio,
@@ -950,9 +949,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _adjustedUsdsRate()) {
-            //revert OfferPriceLow();
+            revert OfferPriceLow();
         }
-        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -1285,19 +1283,19 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
-    function _getDiscountRate(address repoToken) internal  returns (uint256) {
+    function _getDiscountRate(address repoToken) internal view returns (uint256) {
         uint256 usdsRate = _adjustedUsdsRate();
         uint256 discountRateAuction = strategyState.discountRateAdapter.getDiscountRate(repoToken);
         return usdsRate > discountRateAuction ? usdsRate : discountRateAuction;
     }
 
-   function _adjustedUsdsRate() internal returns (uint256) {
+   function _adjustedUsdsRate() internal view returns (uint256) {
         uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
 
         // x = ssr/RAY - 1 in RAY precision (27 decimals)
         int256 x = int256(ssrRate - 1e27);
         
-        // n = seconds in a year (no decimals)
+        // n = seconds in a 365.25 day year (no decimals)
         int256 n = 31557600; 
         
         // First term: nx (result in 27 decimals)
@@ -1311,10 +1309,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
         // Convert from 27 to 18 decimals and then adjust to 360 day Term Finance APY
-        uint256 answer = uint256(term1 + term2 + term3) * 3600 / (1e9 * 3625);
-
-        emit UsdsRate(answer);
-        return answer;
+        return uint256(term1 + term2 + term3) * 3600 / (1e9 * 3625);
     }
 
 
