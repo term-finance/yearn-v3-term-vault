@@ -78,6 +78,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 repoTokenConcentrationLimit;
     }
 
+    event UsdsRate(uint256 rate);
+
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -429,7 +431,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 amount
     )
         external
-        view
         returns (
             uint256 simulatedWeightedMaturity,
             uint256 simulatedRepoTokenConcentrationRatio,
@@ -457,9 +458,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
-            uint256 discountRate = strategyState
-                .discountRateAdapter
-                .getDiscountRate(repoToken);
+            uint256 discountRate = _getDiscountRate(repoToken);
             uint256 repoRedemptionHaircut = strategyState
                 .discountRateAdapter
                 .repoRedemptionHaircut(repoToken);
@@ -951,8 +950,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _usdsRate()) {
-            revert OfferPriceLow();
+            //revert OfferPriceLow();
         }
+        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -1298,7 +1298,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 x = int256(ssrRate - 1e27);
         
         // n = seconds in a year (no decimals)
-        int256 n = 360 days; 
+        int256 n = 31557600; 
         
         // First term: nx (result in 27 decimals)
         int256 term1 = n * x;
@@ -1311,7 +1311,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
         // Convert from 27 to 18 decimals
-        return uint256(term1 + term2 + term3) / 1e9;
+        uint256 answer =  uint256(term1 + term2 + term3) / 1e9;
+        emit UsdsRate(answer);
+        return answer;
     }
 
 
