@@ -79,7 +79,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             idHash,
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             offerAmount
         );
 
@@ -89,7 +89,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             idHash,
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             offerAmount
         );
 
@@ -135,7 +135,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             51e6
         );
     }
@@ -154,7 +154,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             1e6
         );
     }
@@ -173,7 +173,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             1e6
         );
     }
@@ -192,7 +192,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             101e6
         );
     }
@@ -209,7 +209,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken100Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             10e6
         );
     }
@@ -231,7 +231,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             bytes32("offer id hash 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             1e6
         );
     }
@@ -263,7 +263,7 @@ contract TestUSDCSubmitOffer is Setup {
             address(repoToken1Week),
             offerId1,
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             offerAmount
         );
 

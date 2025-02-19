@@ -109,7 +109,7 @@ contract TestUSDCIntegration is Setup {
             address(repoToken),
             idHash,
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             offerAmount
         );
 
@@ -119,7 +119,7 @@ contract TestUSDCIntegration is Setup {
             address(repoToken),
             idHash,
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             offerAmount
         );
 
@@ -355,7 +355,7 @@ contract TestUSDCIntegration is Setup {
             address(repoToken1Week),
             bytes32("offer 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             1e6
         );
 
@@ -378,7 +378,7 @@ contract TestUSDCIntegration is Setup {
             address(repoToken1Week),
             bytes32("offer 1"),
             100,
-            bytes32("test price"),
+            uint256(bytes32("test price")),
             1e6
         );
 

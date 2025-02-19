@@ -924,7 +924,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * @param repoToken The address of the repoToken
      * @param idHash The hash of the offer ID
      * @param offerPrice The price of the offer
-     * @param offerPriceHash The hash of the offer price
+     * @param offerNonce Randomized nonce for offer
      * @param purchaseTokenAmount The amount of purchase tokens being offered
      * @return offerIds An array of offer IDs for the submitted offers
      *
@@ -936,7 +936,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         address repoToken,
         bytes32 idHash,
         uint256 offerPrice,
-        bytes32 offerPriceHash,
+        uint256 offerNonce,
         uint256 purchaseTokenAmount
     )
         external
@@ -949,7 +949,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             revert ZeroPurchaseTokenAmount();
         }
 
-        if (offerPrice < _usdsRate()) {
+        if (offerPrice < _adjustedUsdsRate()) {
             //revert OfferPriceLow();
         }
         return offerIds;
@@ -971,7 +971,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
         offer.id = idHash;
         offer.offeror = address(this);
-        offer.offerPriceHash = offerPriceHash;
+        offer.offerPriceHash = keccak256(abi.encode(offerPrice, offerNonce));
         offer.amount = purchaseTokenAmount;
         offer.purchaseToken = address(asset);
 
@@ -1286,13 +1286,13 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function _getDiscountRate(address repoToken) internal  returns (uint256) {
-        uint256 usdsRate = _adjusteduUsdsRate();
+        uint256 usdsRate = _adjustedUsdsRate();
         uint256 discountRateAuction = strategyState.discountRateAdapter.getDiscountRate(repoToken);
         return usdsRate > discountRateAuction ? usdsRate : discountRateAuction;
     }
 
    function _adjustedUsdsRate() internal returns (uint256) {
-        uint256 ssrRate = IUsds(0x7153b940910d1e8d2e24c39c59c1cc3cdbaa4d9e).ssr();
+        uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
 
         // x = ssr/RAY - 1 in RAY precision (27 decimals)
         int256 x = int256(ssrRate - 1e27);
