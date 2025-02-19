@@ -39,8 +39,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
-    event USDSRatio(uint256 ratio);
-
     /**
      * @notice Constructor to initialize the Strategy contract
      * @param _asset The address of the asset
@@ -953,10 +951,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _usdsRate()) {
-            return offerIds;
-            //revert OfferPriceLow();
+            revert OfferPriceLow();
         }
-        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -1315,9 +1311,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
         // Convert from 27 to 18 decimals
-        uint256 answer = uint256(term1 + term2 + term3) / 1e9;
-        emit USDSRatio(answer);
-        return answer;
+        return uint256(term1 + term2 + term3) / 1e9;
     }
 
 
