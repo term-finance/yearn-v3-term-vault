@@ -1289,7 +1289,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
    function _usdsRate() internal view returns (uint256) {
-        uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
+        uint256 ssrRate = IUsds(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD).ssr();
 
         // x = ssr/RAY - 1 in RAY precision (27 decimals)
         int256 x = int256(ssrRate - 1e27);
