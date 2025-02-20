@@ -1309,7 +1309,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
         
         // Convert from 27 to 18 decimals and then adjust to 360 day Term Finance APY
-        return uint256(term1 + term2 + term3) * 3600 / (1e9 * 3625);
+        return uint256(term1 + term2 + term3) * 36000 / (1e9 * 36525);
     }
 
 
