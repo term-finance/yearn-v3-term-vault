@@ -78,8 +78,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 repoTokenConcentrationLimit;
     }
 
-    event UsdsRate(uint256 price);
-
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -407,7 +405,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function simulateTransaction(
         address repoToken,
         uint256 amount
-    ) external returns (
+    ) external view returns (
         uint256 simulatedWeightedMaturity, 
         uint256 simulatedRepoTokenConcentrationRatio,
         uint256 simulatedLiquidityRatio
@@ -889,9 +887,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         if (offerPrice < _adjustedUsdsRate()) {
-            //revert OfferPriceLow();
+            revert OfferPriceLow();
         }
-        return offerIds;
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -1209,20 +1206,19 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
-    function _getDiscountRate(address repoToken) internal  returns (uint256) {
+    function _getDiscountRate(address repoToken) internal view returns (uint256) {
         uint256 usdsRate = _adjustedUsdsRate();
         uint256 discountRateAuction = strategyState.discountRateAdapter.getDiscountRate(repoToken);
         return usdsRate > discountRateAuction ? usdsRate : discountRateAuction;
     }
 
-   function _adjustedUsdsRate() internal  returns (uint256) {
+   function _adjustedUsdsRate() internal view returns (uint256) {
         uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
 
-        uint256 answer = (_rpow(ssrRate, 31557600) - 1e27) * 36000/ (1e9*36525);
-        emit UsdsRate(answer);
-        return answer;
+        return (_rpow(ssrRate, 31557600) - 1e27) * 36000/ (1e9*36525); // ssr raised to 365.25 days in seconds, scaled to 9 decimals and adjusted to 360 day Term APY
     }
 
+    // Copied from https://github.com/makerdao/sdai/blob/e6f8cfa1d638b1ef1c6187a1d18f73b21d2754a2/src/SavingsDai.sol#L118
     function _rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
         assembly {
             let RAY := exp(10,27)
