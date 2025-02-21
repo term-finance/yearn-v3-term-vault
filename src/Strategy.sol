@@ -1215,24 +1215,32 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
    function _adjustedUsdsRate() internal view returns (uint256) {
         uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
 
-        // x = ssr/RAY - 1 in RAY precision (27 decimals)
-        int256 x = int256(ssrRate - 1e27);
-        
-        // n = seconds in a 365.25 day year (no decimals)
-        int256 n = 31557600; 
-        
-        // First term: nx (result in 27 decimals)
-        int256 term1 = n * x;
-        
-        // Second term: n(n-1)x^2/2 
-        int256 term2 = (n * (n-1) * (x * x / 1e27)) / 2;
-        
-        // Third term: n(n-1)(n-2)x^3/6
-        // Do all multiplications first
-        int256 term3 = (n * (n-1) * (n-2) * (x * x / 1e27 * x / 1e27)) / 6;
-        
-        // Convert from 27 to 18 decimals and then adjust to 360 day Term Finance APY
-        return uint256(term1 + term2 + term3) * 36000 / (1e9 * 36525);
+        return (_rpow(ssrRate, 31557600) - 1e27) * 36000/ (1e9*36525);
+    }
+
+    function _rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
+        assembly {
+            let RAY := exp(10,27)
+            switch x case 0 {switch n case 0 {z := RAY} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := RAY } default { z := x }
+                let half := div(RAY, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, RAY)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, RAY)
+                    }
+                }
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
