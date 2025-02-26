@@ -1213,7 +1213,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
    function _adjustedUsdsRate() internal view returns (uint256) {
-        uint256 ssrRate = IUsds(0x7153b940910D1e8d2E24c39C59c1cC3cdbaa4D9e).ssr();
+        uint256 ssrRate = IUsds(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD).ssr();
 
         return (_rpow(ssrRate, 31557600) - 1e27) * 36000/ (1e9*36525); // ssr raised to 365.25 days in seconds, scaled to 9 decimals and adjusted to 360 day Term APY
     }
