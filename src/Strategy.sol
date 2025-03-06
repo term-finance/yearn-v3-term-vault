@@ -101,7 +101,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
 
     /// @notice State variables
     bool internal depositLock;
-    uint8 public variant;
+    uint8 public variant = 1;
     address internal pendingGovernor;
 
     RepoTokenListData internal repoTokenListData;
