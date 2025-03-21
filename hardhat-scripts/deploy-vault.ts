@@ -72,7 +72,7 @@ class SetupVaultManagement {
 
     console.log("Vault deployed at address:", vaultAddress);
 
-    this.vault = await ethers.getContractAt("IVault", vaultAddress, this.managedSigner);
+    this.vault = await ethers.getContractAt("@yearn-vaults/interfaces/IVault.sol:IVault", vaultAddress, this.managedSigner);
   }
 
   private async deployAccountant() {
