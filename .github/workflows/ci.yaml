@@ -10,10 +10,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: 0.2.0  # Specify the version that supports testFail*
+          version: nightly
       - name: Install forge-std
         run: |
           forge install foundry-rs/forge-std
@@ -21,6 +20,8 @@ jobs:
       - name: Run non-Kontrol tests
         run: |
           forge test --no-match-path "src/test/kontrol/*" -vvv
+        env:
+          FOUNDRY_IGNORE_DEPRECATED_TEST_FUNCTIONS: true
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
       - name: Run coverage without Kontrol tests
