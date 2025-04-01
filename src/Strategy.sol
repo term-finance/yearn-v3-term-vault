@@ -556,7 +556,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             if (strategyState.currTermController.isTermDeployed(repoToken)) {
                 tokenTermController = address(strategyState.currTermController);
             } else if (
-                strategyState.prevTermController != ITermController(address(0)) &&
+                strategyState.prevTermController !=
+                ITermController(address(0)) &&
                 strategyState.prevTermController.isTermDeployed(repoToken)
             ) {
                 tokenTermController = address(strategyState.prevTermController);
