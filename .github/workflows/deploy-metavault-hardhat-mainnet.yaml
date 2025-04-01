@@ -84,4 +84,6 @@ jobs:
           DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
           DEFAULT_MAX_GAIN: ${{ github.event.inputs.defaultMaxGain }}
           DEFAULT_MAX_LOSS: ${{ github.event.inputs.defaultMaxLoss }}
+          ACCT_MAX_LOSS: ${{ vars.ACCOUNTANT_MAX_LOSS }}
+
   
