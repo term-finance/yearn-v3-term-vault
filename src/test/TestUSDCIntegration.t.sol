@@ -366,7 +366,7 @@ contract TestUSDCIntegration is Setup {
         assertEq(0, pendingOffers.length);
     }
 
-    function testFailedUnlockedOfferFromCancelledAuction() public {
+    function testNoUnlockedOfferFromCancelledAuction() public {
         address testUser = vm.addr(0x11111);
 
         vm.prank(management);
