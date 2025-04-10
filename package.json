@@ -21,7 +21,7 @@
         "solhint-plugin-prettier": "^0.0.5",
         "ts-node": "^10.9.2",
         "typechain": "^8.3.2",
-        "typescript": "^5.7.2"
+        "typescript": "^5.8.3"
     },
     "scripts": {
         "format": "prettier --write 'src/**/*.(sol|json)'",
