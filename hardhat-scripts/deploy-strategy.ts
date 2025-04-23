@@ -206,6 +206,10 @@ async function main() {
   await tx3.wait();
   console.log("Set keeper to:", process.env.KEEPER_ADDRESS, "Transaction hash:", tx3.hash);
 
+  const txPerformanceFee = await strategyContract.setPerformanceFee(process.env.PERFORMANCE_FEE!);
+  await txPerformanceFee.wait();
+  console.log("Set performance fee to:", process.env.PERFORMANCE_FEE, "Transaction hash:", txPerformanceFee.hash);
+
   const tx4 = await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
   await tx4.wait();
   console.log("Set performance fee recipient to:", process.env.FEE_RECIPIENT, "Transaction hash:", tx4.hash);
@@ -213,6 +217,11 @@ async function main() {
   const tx5 = await eventEmitter.pairVaultContract(strategy.address);
   await tx5.wait();
   console.log("Paired strategy with event emitter. Transaction hash:", tx5.hash);
+
+  const tx6 = await eventEmitter.renounceRole("0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775", process.env.ADMIN_ADDRESS);
+  await tx6.wait();
+  console.log("Renounced role from event emitter. Transaction hash:", tx6.hash);
+
 
   // Set collateral token parameters
   const collateralTokens = stringToAddressArray(
