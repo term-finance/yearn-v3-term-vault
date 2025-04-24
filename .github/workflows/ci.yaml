@@ -15,7 +15,7 @@ jobs:
           version: nightly
       - name: Install forge-std
         run: |
-          forge install foundry-rs/forge-std --no-commit
+          # forge install foundry-rs/forge-std --no-commit
           forge remappings > remappings.txt
       - name: Run non-Kontrol tests
         run: |
