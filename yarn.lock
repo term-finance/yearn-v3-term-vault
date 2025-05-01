@@ -253,13 +253,13 @@ __metadata:
   linkType: hard
 
 "@ethersproject/experimental@npm:^5.7.0":
-  version: 5.7.0
-  resolution: "@ethersproject/experimental@npm:5.7.0"
+  version: 5.8.0
+  resolution: "@ethersproject/experimental@npm:5.8.0"
   dependencies:
-    "@ethersproject/web": "npm:^5.7.0"
-    ethers: "npm:^5.7.0"
+    "@ethersproject/web": "npm:^5.8.0"
+    ethers: "npm:^5.8.0"
     scrypt-js: "npm:3.0.1"
-  checksum: 10c0/0546f8737ca062ce7d4a890d9cb354fde34b10b042b1d6b26e7206810c39d0fdb7ac20e60686a89f3f41faf33cc4c4c7366f49700a2d0978f0457e79759a79a4
+  checksum: 10c0/61412f6762b0fe09ff605eb45e317aa753b96223a4ea77351209a1424ea67ce43edb57ec1cb1b53ed07917fac224cd4e5c763ad9ca6e7128c4d5c830f5f33dd0
   languageName: node
   linkType: hard
 
@@ -2289,7 +2289,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethers@npm:^5.4.7, ethers@npm:^5.7.0":
+"ethers@npm:^5.4.7, ethers@npm:^5.8.0":
   version: 5.8.0
   resolution: "ethers@npm:5.8.0"
   dependencies:
