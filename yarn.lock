@@ -39,7 +39,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/abi@npm:5.8.0, @ethersproject/abi@npm:^5.8.0":
+"@ethersproject/abi@npm:5.8.0, @ethersproject/abi@npm:^5.7.0, @ethersproject/abi@npm:^5.8.0":
   version: 5.8.0
   resolution: "@ethersproject/abi@npm:5.8.0"
   dependencies:
@@ -56,7 +56,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/abi@npm:^5.1.2, @ethersproject/abi@npm:^5.5.0":
+"@ethersproject/abi@npm:^5.1.2":
   version: 5.7.0
   resolution: "@ethersproject/abi@npm:5.7.0"
   dependencies:
@@ -2717,15 +2717,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hardhat-abi-exporter@npm:^2.10.1":
-  version: 2.10.1
-  resolution: "hardhat-abi-exporter@npm:2.10.1"
+"hardhat-abi-exporter@npm:^2.11.0":
+  version: 2.11.0
+  resolution: "hardhat-abi-exporter@npm:2.11.0"
   dependencies:
-    "@ethersproject/abi": "npm:^5.5.0"
+    "@ethersproject/abi": "npm:^5.7.0"
     delete-empty: "npm:^3.0.0"
   peerDependencies:
     hardhat: ^2.0.0
-  checksum: 10c0/f9d23494b9a970d3e16d18727d9f47645e5ad0f5540381bfff7e88bc022285f8b441ecd590f69d88aa3e42464bdd56cfb14d514d1158e015a394399f33026b1a
+  checksum: 10c0/737e283c709d7f43827340a965f75866384d47f9cc5f9618b86e741a8f54d831d89f04ff681bc229984175b51763735a66b20b89f0949833d9d484e64cc90d90
   languageName: node
   linkType: hard
 
@@ -4764,7 +4764,7 @@ __metadata:
     env-cmd: "npm:^10.1.0"
     ethers: "npm:^5.4.7"
     hardhat: "npm:^2.22.17"
-    hardhat-abi-exporter: "npm:^2.10.1"
+    hardhat-abi-exporter: "npm:^2.11.0"
     path: "npm:^0.12.7"
     prettier: "npm:^3.0.0"
     prettier-plugin-solidity: "npm:^2.0.0"
