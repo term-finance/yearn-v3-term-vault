@@ -21,3 +21,27 @@ jobs:
       - run: forge install
       - run: forge doc
       - run: CREATE_PR=true ./publish-docs.sh
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - run: forge --version
+      - name: Build contracts
+        run: forge build --sizes
+      - run: ./build-package.sh ./package
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          role-session-name: yearn-v3-term-vault-github-workflow
+          aws-region: ${{ secrets.AWS_REGION }}
+      - run: aws s3 sync package/ s3://${{ secrets.S3_BUCKET }}/${{ github.event.release.name }}
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: abis
+          path: abi/

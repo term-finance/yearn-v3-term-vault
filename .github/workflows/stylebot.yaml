@@ -16,22 +16,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ secrets.STYLEBOT_GITHUB_APP_ID }}
-          private-key: ${{ secrets.STYLEBOT_GITHUB_APP_KEY }}
       - uses: actions/checkout@master
       - id: nodeversion
         run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> $GITHUB_OUTPUT
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ steps.nodeversion.outputs.version }}
           cache: yarn
       - run: yarn install --immutable
-      # Run fixes, save stdout.
       - run: |
-          echo 'ESLINT_RESULTS<<EOF' >> ${GITHUB_ENV}
+          echo 'SOLHINT_RESULTS<<EOF' >> ${GITHUB_ENV}
           yarn lint:fix >> ${GITHUB_ENV} || true
           echo 'EOF' >> ${GITHUB_ENV}
       - run: |
@@ -42,22 +37,21 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ steps.app-token.outputs.token }}
           commit-message: "[stylebot] Fixes for code style"
           branch: stylebot/patch
           title: "[stylebot] Fixes for code style"
           body: |
             Stylebot detected automatically fix-able code style issues.
 
-            <details><summary>`yarn fix:eslint`</summary>
+            <details><summary>`yarn lint:fix`</summary>
 
             ```
-            ${{ env.ESLINT_RESULTS }}
+            ${{ env.SOLHINT_RESULTS }}
             ```
 
             </details>
 
-            <details><summary>`yarn fix:prettier`</summary>
+            <details><summary>`yarn format`</summary>
 
             ```
             ${{ env.PRETTIER_RESULTS }}

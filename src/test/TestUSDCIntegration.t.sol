@@ -369,7 +369,7 @@ contract TestUSDCIntegration is Setup {
         assertEq(0, pendingOffers.length);
     }
 
-    function testFailedUnlockedOfferFromCancelledAuction() public {
+    function testCancelledAuctionWithFailedUnlock() public {
         address testUser = vm.addr(0x11111);
 
         vm.prank(management);
@@ -387,15 +387,13 @@ contract TestUSDCIntegration is Setup {
         vm.startPrank(testUser);
         repoToken1Month.mint(testUser, 1000e18);
         repoToken1Month.approve(address(strategy), type(uint256).max);
-        vm.mockCall(
+        vm.mockCallRevert(
             repoToken1WeekAuction.termAuctionOfferLocker(),
             abi.encodeWithSelector(
                 MockTermAuctionOfferLocker.unlockOffers.selector,
                 offerIds
             ),
-            abi.encodeWithSelector(
-                MockTermAuctionOfferLocker.OfferUnlockingFailed.selector
-            )
+            "OfferUnlockingFailed"
         );
         termStrategy.sellRepoToken(address(repoToken1Month), 1e6);
         bytes32[] memory pendingOffers = termStrategy.pendingOffers();

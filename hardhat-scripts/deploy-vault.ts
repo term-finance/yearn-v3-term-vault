@@ -72,7 +72,7 @@ class SetupVaultManagement {
 
     console.log("Vault deployed at address:", vaultAddress);
 
-    this.vault = await ethers.getContractAt("IVault", vaultAddress, this.managedSigner);
+    this.vault = await ethers.getContractAt("@yearn-vaults/interfaces/IVault.sol:IVault", vaultAddress, this.managedSigner);
   }
 
   private async deployAccountant() {
@@ -164,6 +164,7 @@ class SetupVaultManagement {
     const defaultMaxFee = process.env.DEFAULT_MAX_FEE || "0";
     const defaultMaxGain = process.env.DEFAULT_MAX_GAIN || "0";
     const defaultMaxLoss = process.env.DEFAULT_MAX_LOSS || "0";
+    const acctMaxLoss = process.env.ACCT_MAX_LOSS || "0";
     const feeRecipient = process.env.FEE_RECIPIENT!;
 
     console.log("Default performance:", defaultPerformance);
@@ -182,6 +183,10 @@ class SetupVaultManagement {
       defaultMaxLoss
     )).wait();
     console.log("Default config updated.");
+
+    console.log("Updating accountant max loss");
+    await (await this.accountant.setMaxLoss(acctMaxLoss)).wait();
+    console.log("Accountant max loss updated.");
 
     console.log("Adding vault to accountant...");
     await (await this.accountant.addVault(this.vault.address)).wait();

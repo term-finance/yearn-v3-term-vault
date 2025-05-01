@@ -13,10 +13,7 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-      - name: Install forge-std
-        run: |
-          forge install foundry-rs/forge-std --no-commit
-          forge remappings > remappings.txt
+      - run: forge install
       - name: Run non-Kontrol tests
         run: |
           forge test --no-match-path "src/test/kontrol/*" -vvv
@@ -24,7 +21,7 @@ jobs:
         run: forge snapshot --no-match-path "src/test/kontrol/*"
       - name: Run coverage without Kontrol tests
         run: forge coverage --report lcov --no-match-path "src/test/kontrol/*"
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
   

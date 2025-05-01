@@ -2,3 +2,8 @@ node_modules/
 cache/
 docs/
 out/
+
+/flattened/
+/package/
+
+/.yarn/install-state.gz
