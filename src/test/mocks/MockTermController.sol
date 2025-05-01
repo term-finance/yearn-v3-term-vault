@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import {ITermController, AuctionMetadata} from "../../interfaces/term/ITermController.sol";
+import {
+    ITermController,
+    AuctionMetadata
+} from "../../interfaces/term/ITermController.sol";
 
 struct TermAuctionResults {
     AuctionMetadata[] auctionMetadata;
