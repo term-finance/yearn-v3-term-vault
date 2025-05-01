@@ -3514,12 +3514,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:^2.3.1, prettier@npm:^2.5.1, prettier@npm:^2.8.3":
+"prettier@npm:^2.3.1, prettier@npm:^2.8.3":
   version: 2.8.8
   resolution: "prettier@npm:2.8.8"
   bin:
     prettier: bin-prettier.js
   checksum: 10c0/463ea8f9a0946cd5b828d8cf27bd8b567345cf02f56562d5ecde198b91f47a76b7ac9eae0facd247ace70e927143af6135e8cf411986b8cb8478784a4d6d724a
+  languageName: node
+  linkType: hard
+
+"prettier@npm:^3.0.0":
+  version: 3.5.3
+  resolution: "prettier@npm:3.5.3"
+  bin:
+    prettier: bin/prettier.cjs
+  checksum: 10c0/3880cb90b9dc0635819ab52ff571518c35bd7f15a6e80a2054c05dbc8a3aa6e74f135519e91197de63705bcb38388ded7e7230e2178432a1468005406238b877
   languageName: node
   linkType: hard
 
@@ -4229,7 +4238,7 @@ __metadata:
     hardhat: "npm:^2.22.17"
     hardhat-abi-exporter: "npm:^2.10.1"
     path: "npm:^0.12.7"
-    prettier: "npm:^2.5.1"
+    prettier: "npm:^3.0.0"
     prettier-plugin-solidity: "npm:^1.0.0-beta.19"
     pretty-quick: "npm:^3.1.3"
     solc: "npm:0.8.23"
