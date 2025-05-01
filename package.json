@@ -6,7 +6,7 @@
         "@nomicfoundation/hardhat-verify": "^2.0.12",
         "@nomiclabs/hardhat-ethers": "^2.0.0",
         "@typechain/ethers-v5": "^11.1.2",
-        "@typechain/hardhat": "^6.1.2",
+        "@typechain/hardhat": "^9.1.0",
         "dotenv": "^16.4.7",
         "env-cmd": "^10.1.0",
         "ethers": "^5.4.7",
