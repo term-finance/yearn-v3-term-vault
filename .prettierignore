@@ -1,0 +1,16 @@
+node_modules
+artifacts
+cache
+coverage*
+gasReporterOutput.json
+abi
+docs
+out
+flattened
+package
+typechain
+typechain-types
+.yarn
+yarn.lock
+.openzeppelin
+audits
