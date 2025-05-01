@@ -2,7 +2,9 @@
 pragma solidity ^0.8.18;
 
 import {ITermAuction} from "../../interfaces/term/ITermAuction.sol";
-import {ITermAuctionOfferLocker} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
+import {
+    ITermAuctionOfferLocker
+} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermRepoToken} from "../../interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "../../interfaces/term/ITermRepoServicer.sol";
 import {MockTermAuctionOfferLocker} from "./MockTermAuctionOfferLocker.sol";

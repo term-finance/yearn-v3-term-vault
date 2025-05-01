@@ -4,8 +4,12 @@ pragma solidity ^0.8.18;
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
-import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
-import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {
+    ITermRepoCollateralManager
+} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {
+    ITermDiscountRateAdapter
+} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -420,7 +424,6 @@ library RepoTokenList {
             returns (uint256 rate) {
                 oracleRate = rate;
             } catch {}
-
             if (oracleRate != 0) {
                 if (discountRate != oracleRate) {
                     listData.discountRates[address(repoToken)] = oracleRate;
@@ -435,7 +438,6 @@ library RepoTokenList {
                 discountRate = INVALID_AUCTION_RATE;
                 return (false, redemptionTimestamp);
             }
-
             bool isRepoTokenValid;
 
             (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(

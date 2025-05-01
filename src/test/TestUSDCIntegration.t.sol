@@ -2,7 +2,9 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
-import {MockTermAuctionOfferLocker} from "./mocks/MockTermAuctionOfferLocker.sol";
+import {
+    MockTermAuctionOfferLocker
+} from "./mocks/MockTermAuctionOfferLocker.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";

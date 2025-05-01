@@ -2,18 +2,29 @@
 pragma solidity ^0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20,
+    IERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
-import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
-import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {
+    ITermAuctionOfferLocker
+} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {
+    ITermDiscountRateAdapter
+} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
-import {TermAuctionList, TermAuctionListData, PendingOffer} from "./TermAuctionList.sol";
+import {
+    TermAuctionList,
+    TermAuctionListData,
+    PendingOffer
+} from "./TermAuctionList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 

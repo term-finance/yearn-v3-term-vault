@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
-import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
+import {
+    ITermDiscountRateAdapter
+} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {
+    ITermController,
+    AuctionMetadata
+} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 

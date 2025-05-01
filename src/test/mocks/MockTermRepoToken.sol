@@ -4,9 +4,13 @@ pragma solidity ^0.8.18;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ITermRepoToken} from "../../interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "../../interfaces/term/ITermRepoServicer.sol";
-import {ITermRepoCollateralManager} from "../../interfaces/term/ITermRepoCollateralManager.sol";
+import {
+    ITermRepoCollateralManager
+} from "../../interfaces/term/ITermRepoCollateralManager.sol";
 import {MockTermRepoServicer} from "./MockTermRepoServicer.sol";
-import {MockTermRepoCollateralManager} from "./MockTermRepoCollateralManager.sol";
+import {
+    MockTermRepoCollateralManager
+} from "./MockTermRepoCollateralManager.sol";
 
 contract MockTermRepoToken is ERC20, ITermRepoToken {
     struct RepoTokenContext {

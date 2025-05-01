@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import {ITermAuctionOfferLocker} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
+import {
+    ITermAuctionOfferLocker
+} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermAuction} from "../../interfaces/term/ITermAuction.sol";
 import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
 import {MockTermRepoToken} from "./MockTermRepoToken.sol";
