@@ -23,6 +23,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bytecodealliance/preview2-shim@npm:0.17.2":
+  version: 0.17.2
+  resolution: "@bytecodealliance/preview2-shim@npm:0.17.2"
+  checksum: 10c0/d839bd5ca4f4d845e32b15fde2ad98e4125b2d8f1d9ec4864e5aa997f07563e5e4800c476d01aa93bde7a0fa88e75f75f8cb28241a9e204f3c18e6c2d84c1c47
+  languageName: node
+  linkType: hard
+
 "@cspotcode/source-map-support@npm:^0.8.0":
   version: 0.8.1
   resolution: "@cspotcode/source-map-support@npm:0.8.1"
@@ -880,6 +887,15 @@ __metadata:
   peerDependencies:
     hardhat: ^2.0.4
   checksum: 10c0/551f11346480175362023807b4cebbdacc5627db70e2b4fb0afa04d8ec2c26c3b05d2e74821503e881ba745ec6e2c3a678af74206364099ec14e584a811b2564
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/slang@npm:1.1.0":
+  version: 1.1.0
+  resolution: "@nomicfoundation/slang@npm:1.1.0"
+  dependencies:
+    "@bytecodealliance/preview2-shim": "npm:0.17.2"
+  checksum: 10c0/cd23e16ad1a15daee1c42d277db80f64e2058909c9e475fdee75b6f04e6ba047c6ee8325c3d3d5f015b28b6f0af1258d675f6dcbfd8ab408850cb30c0d24c44e
   languageName: node
   linkType: hard
 
@@ -3933,15 +3949,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier-plugin-solidity@npm:^1.0.0-beta.19":
-  version: 1.4.3
-  resolution: "prettier-plugin-solidity@npm:1.4.3"
+"prettier-plugin-solidity@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "prettier-plugin-solidity@npm:2.0.0"
   dependencies:
+    "@nomicfoundation/slang": "npm:1.1.0"
     "@solidity-parser/parser": "npm:^0.20.1"
     semver: "npm:^7.7.1"
   peerDependencies:
-    prettier: ">=2.3.0"
-  checksum: 10c0/461fd5a7fa2a46e9f6ef46db0ad07f2f51b8e7c7f9cddc6c642b2af027d822f1b1f79185cb42b02bf09b6ba8f9130048e00bc260b6bfe53c736ee7a773b10231
+    prettier: ">=3.0.0"
+  checksum: 10c0/ae6df777034fddbb21406ca9c1564497a43658a7720c9d8c3d12c7591b9679bc53b2dcf37a51b5091413fa1197bf8b2a86f564303bcc19260a76fb5faf9edc73
   languageName: node
   linkType: hard
 
@@ -4740,7 +4757,7 @@ __metadata:
     hardhat-abi-exporter: "npm:^2.10.1"
     path: "npm:^0.12.7"
     prettier: "npm:^3.0.0"
-    prettier-plugin-solidity: "npm:^1.0.0-beta.19"
+    prettier-plugin-solidity: "npm:^2.0.0"
     pretty-quick: "npm:^3.1.3"
     solc: "npm:0.8.23"
     solhint: "npm:^5.0.5"
