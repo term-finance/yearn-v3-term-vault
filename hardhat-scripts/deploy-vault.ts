@@ -116,6 +116,7 @@ class SetupVaultManagement {
   private async configureVault() {
     console.log("Configuring vault...");
     const keeper = process.env.KEEPER_ADDRESS!;
+    const relayer = process.env.RELAYER_ADDRESS!;
     const strategyAdder = process.env.STRATEGY_ADDER!;
     const depositLimit = process.env.DEPOSIT_LIMIT || "0";
 
@@ -130,6 +131,10 @@ class SetupVaultManagement {
     console.log("Setting keeper roles...");
     await (await this.vault.set_role(keeper, 112)).wait();
     console.log("Keeper roles set.");
+
+    console.log("Setting relayer roles...");
+    await (await this.vault.add_role(relayer, 16)).wait(); //adds the QUEUE_MANAGER role allowing relayer to set default queue
+    console.log("Relayer roles set.");
 
     console.log("Configuring vault parameters...");
     await (await this.vault.set_accountant(this.accountant.address)).wait();
