@@ -8,19 +8,42 @@ permissions:
   contents: write    # Required for checkout and pushing changes
   pull-requests: write    # Required for creating PRs
 jobs:
-  publish-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-      - run: forge install
-      - run: forge doc
-      - run: CREATE_PR=true ./publish-docs.sh
+  # publish-docs:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #         submodules: recursive
+  #         path: yearn-v3-term-vault
+  #     - name: Generate a token
+  #       id: docs_token
+  #       uses: actions/create-github-app-token@v1
+  #       with:
+  #         app-id: ${{ secrets.APP_ID }}
+  #         private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  #         owner: term-finance
+  #         repositories: term-finance-developer-docs
+  #     - uses: actions/checkout@master
+  #       with:
+  #         token: ${{ steps.docs_token.outputs.token }}
+  #         repository: term-finance/term-finance-developer-docs
+  #         ref: main
+  #         path: term-finance-developer-docs
+  #     - uses: foundry-rs/foundry-toolchain@v1
+  #       with:
+  #         version: nightly
+  #     - run: forge install
+  #       working-directory: yearn-v3-term-vault
+  #     - run: forge doc
+  #       working-directory: yearn-v3-term-vault
+  #     - run: CREATE_PR=true ./publish-docs.sh
+  #       working-directory: yearn-v3-term-vault
+  #       env:
+  #         GITHUB_TOKEN: ${{ steps.docs_token.outputs.token }}
+  #         RELEASE_VERSION: ${{ github.event.release.name }}
+  #         RELEASE_NAME: ${{ github.event.release.name }}
+  #         RELEASE_BODY: ${{ github.event.release.body }}
 
   deploy:
     runs-on: ubuntu-latest
