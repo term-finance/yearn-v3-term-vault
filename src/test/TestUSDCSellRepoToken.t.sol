@@ -609,7 +609,8 @@ contract TestUSDCSellRepoToken is Setup {
             repoToken4WeekAuction,
             address(repoToken4Week),
             idHash,
-            bytes32("test price"),
+            100,
+            uint256(bytes32("test price")),
             3e6
         );
 
