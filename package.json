@@ -10,7 +10,7 @@
         "dotenv": "^16.4.7",
         "env-cmd": "^10.1.0",
         "ethers": "^5.4.7",
-        "hardhat": "^2.22.17",
+        "hardhat": "^2.24.1",
         "hardhat-abi-exporter": "^2.10.1",
         "path": "^0.12.7",
         "prettier": "^3.0.0",
