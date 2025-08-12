@@ -14,7 +14,7 @@ jobs:
       name: sepolia
       url: https://term-finance.github.io/yearn-v3-term-vault/
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
