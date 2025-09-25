@@ -33,5 +33,5 @@
         "sepolia:deploy-vault": "hardhat run --network sepolia hardhat-scripts/deploy-vault.ts",
         "mainnet:deploy-vault": "hardhat run --network mainnet hardhat-scripts/deploy-vault.ts"
     },
-    "packageManager": "yarn@4.9.1"
+    "packageManager": "yarn@4.10.3"
 }
