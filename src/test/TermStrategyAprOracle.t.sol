@@ -3,12 +3,12 @@ pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-import {TermStrategyAprOracle} from "../../helper/TermStrategyAprOracle.sol";
-import {MockAprOracle} from "../mocks/MockAprOracle.sol";
-import {MockStrategy} from "../mocks/MockStrategy.sol";
-import {MockDiscountRateAdapter} from "../mocks/MockDiscountRateAdapter.sol";
-import {MockTermRepoToken} from "../mocks/MockTermRepoToken.sol";
-import {MockUSDC} from "../mocks/MockUSDC.sol";
+import {TermStrategyAprOracle} from "../helper/TermStrategyAprOracle.sol";
+import {MockAprOracle} from "./mocks/MockAprOracle.sol";
+import {MockStrategy} from "./mocks/MockStrategy.sol";
+import {MockDiscountRateAdapter} from "./mocks/MockDiscountRateAdapter.sol";
+import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 /**
  * @title TermStrategyAprOracleTest
