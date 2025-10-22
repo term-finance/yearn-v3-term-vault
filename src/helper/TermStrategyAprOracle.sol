@@ -87,8 +87,8 @@ contract TermStrategyAprOracle is
             adjustedAssetValue = totalAssetValue - absDebtChange;
         }
 
+        require(adjustedAssetValue > 0, "Adjusted asset value is zero");
         return (totalWeightedApr + liquidBalanceWeightedApr) / adjustedAssetValue;
-
     }
 
     // =============================================================
