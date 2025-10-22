@@ -247,6 +247,9 @@ contract TermStrategyAprOracleTest is Test {
 
     function test_aprAfterDebtChange_maturedRepoToken() public {
         // Create a repo token that's already matured
+        // Use vm.warp to set block.timestamp to a known value first
+        vm.warp(100 days);
+        
         MockTermRepoToken maturedRepoToken = new MockTermRepoToken(
             bytes32("MATURED"),
             address(purchaseToken),
@@ -303,7 +306,8 @@ contract TermStrategyAprOracleTest is Test {
 
         int256 debtChange = -200e18; // Trying to reduce more than available
 
-        vm.expectRevert("Asset value insufficient for debt change");
+        // When there are no repo tokens, liquid balance check happens first
+        vm.expectRevert("Liquid balance insufficient for debt change");
         oracle.aprAfterDebtChange(address(strategy), debtChange);
     }
 
