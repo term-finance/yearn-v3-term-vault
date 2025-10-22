@@ -18,7 +18,6 @@ contract TermStrategyAprOracle is
     // =============================================================
     //                          ROLES
     // =============================================================
-    bytes32 public constant ORACLE_ADMIN_ROLE = keccak256("ORACLE_ADMIN_ROLE");
 
     // =============================================================
     //                          ERRORS
