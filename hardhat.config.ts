@@ -51,10 +51,10 @@ task("compile", "Compiles the project, including libraries in the lib folder", a
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.23",
+    version: "0.8.18",
     settings: {
       optimizer: {
-        enabled: true,
+        enabled: false,
         runs: 200,
       },
     },
@@ -68,7 +68,28 @@ const config: HardhatUserConfig = {
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: {
+      avalanche: "snowtrace",
+      plasma: "ok"
+    },
+    customChains: [
+      {
+        network: "avalanche",
+        chainId: 43114,
+        urls: {
+          apiURL: "https://api.snowtrace.io/api",
+          browserURL: "https://snowtrace.io"
+        }
+      },
+      {
+        network: "plasma",
+        chainId: 9745,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/plasma/evm/9745/etherscan/api",
+          browserURL: "https://plasmascan.to/ ",
+        },
+      }
+    ]
   },
   typechain: {
     outDir: "typechain-types",
@@ -94,6 +115,16 @@ const config: HardhatUserConfig = {
       url: process.env.MAINNET_RPC_URL || "",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 1
+    },
+    base: {
+      url: process.env.BASE_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 8453
+    },
+    plasma: {
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 9745,
+      url: "https://rpc.plasma.to",
     }
   }
 };

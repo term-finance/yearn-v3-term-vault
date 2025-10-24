@@ -6,6 +6,32 @@ import {Strategy} from "../Strategy.sol";
 import {ITermRepoToken} from "../interfaces/term/ITermRepoToken.sol";
 import {ITermDiscountRateAdapter} from "../interfaces/term/ITermDiscountRateAdapter.sol";
 
+// =============================================================
+//                          TYPES
+// =============================================================
+
+enum VaultType {
+    STRATEGY,
+    MULTISTRAT
+}
+
+struct VaultMapping {
+    address vaultAddress;
+    VaultType vaultType;
+}
+
+interface IAprOracleGlobal {
+    function getWeightedAverageApr(
+        address _vault,
+        int256 _delta
+    ) external view returns (uint256);
+
+    function getStrategyApr(
+        address _strategy,
+        int256 _debtChange
+    ) external view returns (uint256 apr);
+}
+
 /**
  * @title TermStrategyAprOracle
  * @dev Oracle contract for providing APR data for Term Strategy
@@ -31,19 +57,22 @@ contract TermStrategyAprOracle is
     // =============================================================
     //                        STATE VARIABLES
     // =============================================================
+    
+    IAprOracleGlobal public immutable globalOracle;
+    mapping(address => VaultMapping) public idleVaultRemappings;
 
-    mapping(address => AprOracleBase) public externalAprOracles;
 
     // =============================================================
     //                        CONSTRUCTOR
     // =============================================================
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address admin, address[] memory _underlyingVaults, address[] memory _aprOracles) AprOracleBase("TermStrategyAprOracle", admin) {
-        require(_underlyingVaults.length == _aprOracles.length, "Mismatched input lengths");
-
-        for (uint256 i = 0; i < _underlyingVaults.length; i++) {
-            externalAprOracles[_underlyingVaults[i]] = AprOracleBase(_aprOracles[i]);
+    constructor(address admin_, address globalOracle_, address[] memory underlyingVaults_, VaultMapping[] memory vaultMappings_) AprOracleBase("TermStrategyAprOracle", admin_) {
+        require(underlyingVaults_.length == vaultMappings_.length, "Mismatched input lengths");
+        require(globalOracle_ != address(0), "ZERO ADDRESS");
+        globalOracle = IAprOracleGlobal(globalOracle_);
+        for (uint256 i = 0; i < underlyingVaults_.length; i++) {
+            idleVaultRemappings[underlyingVaults_[i]] = vaultMappings_[i];
         }
     }
 
@@ -154,12 +183,17 @@ contract TermStrategyAprOracle is
         }
 
         // Check if there is an external APR oracle for the underlying asset
-        AprOracleBase externalAprOracle = externalAprOracles[strategyUnderlyingVault];
-        if (address(externalAprOracle) == address(0)) {
+        VaultMapping memory vaultMapping = idleVaultRemappings[strategyUnderlyingVault];
+        if (vaultMapping.vaultAddress == address(0)) {
             revert UnknownUnderlyingVaultAprOracle();
         }
+        uint256 externalApr;
+        if (vaultMapping.vaultType == VaultType.MULTISTRAT) {
+            externalApr = globalOracle.getWeightedAverageApr(strategyUnderlyingVault, _debtChange);
+        } else {
+            externalApr = globalOracle.getStrategyApr(strategyUnderlyingVault, _debtChange);
+        }
       
-        uint256 externalApr = externalAprOracle.aprAfterDebtChange(strategyUnderlyingVault, _debtChange);
         liquidBalanceWeightedApr = (externalApr * adjustedLiquidBalance);
     }
 
@@ -168,27 +202,27 @@ contract TermStrategyAprOracle is
     // =============================================================
 
     /**
-     * @dev Batch sets or removes external APR oracles for underlying vaults
+     * @dev Batch sets or removes idle vault remappings for underlying vaults
      * @param _underlyingVaults Array of underlying vault addresses
-     * @param _aprOracles Array of corresponding APR oracle addresses (use address(0) to remove)
+     * @param _vaultMappings Array of corresponding vault mappings (use address(0) in vaultAddress to remove)
      */
-    function batchSetExternalAprOracles(
+    function batchSetIdleVaultRemappings(
         address[] calldata _underlyingVaults,
-        address[] calldata _aprOracles
+        VaultMapping[] calldata _vaultMappings
     ) external onlyGovernance {
-        require(_underlyingVaults.length == _aprOracles.length, "Mismatched input lengths");
+        require(_underlyingVaults.length == _vaultMappings.length, "Mismatched input lengths");
         
         for (uint256 i = 0; i < _underlyingVaults.length; i++) {
             if (_underlyingVaults[i] == address(0)) revert ZeroAddress();
             
-            if (_aprOracles[i] == address(0)) {
-                // Remove oracle
-                delete externalAprOracles[_underlyingVaults[i]];
+            if (_vaultMappings[i].vaultAddress == address(0)) {
+                // Remove mapping
+                delete idleVaultRemappings[_underlyingVaults[i]];
                 emit ExternalAprOracleRemoved(_underlyingVaults[i]);
             } else {
-                // Set oracle
-                externalAprOracles[_underlyingVaults[i]] = AprOracleBase(_aprOracles[i]);
-                emit ExternalAprOracleSet(_underlyingVaults[i], _aprOracles[i]);
+                // Set mapping
+                idleVaultRemappings[_underlyingVaults[i]] = _vaultMappings[i];
+                emit ExternalAprOracleSet(_underlyingVaults[i], _vaultMappings[i].vaultAddress);
             }
         }
     }

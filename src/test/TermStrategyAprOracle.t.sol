@@ -3,8 +3,9 @@ pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-import {TermStrategyAprOracle} from "../helper/TermStrategyAprOracle.sol";
+import {TermStrategyAprOracle, VaultMapping, VaultType} from "../helper/TermStrategyAprOracle.sol";
 import {MockAprOracle} from "./mocks/MockAprOracle.sol";
+import {MockGlobalOracle} from "./mocks/MockGlobalOracle.sol";
 import {MockStrategy} from "./mocks/MockStrategy.sol";
 import {MockDiscountRateAdapter} from "./mocks/MockDiscountRateAdapter.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
@@ -16,7 +17,7 @@ import {MockUSDC} from "./mocks/MockUSDC.sol";
  */
 contract TermStrategyAprOracleTest is Test {
     TermStrategyAprOracle public oracle;
-    MockAprOracle public externalOracle;
+    MockGlobalOracle public globalOracle;
     MockStrategy public strategy;
     MockDiscountRateAdapter public discountRateAdapter;
     MockTermRepoToken public repoToken1;
@@ -25,6 +26,7 @@ contract TermStrategyAprOracleTest is Test {
 
     address public admin = address(1);
     address public underlyingVault = address(2);
+    address public mappedVault = address(4);
     address public user = address(3);
 
     uint256 public constant SECONDS_PER_YEAR = 360 days;
@@ -39,17 +41,20 @@ contract TermStrategyAprOracleTest is Test {
         discountRateAdapter = new MockDiscountRateAdapter();
         strategy = new MockStrategy(underlyingVault, address(discountRateAdapter));
 
-        // Deploy external APR oracle
-        externalOracle = new MockAprOracle("ExternalOracle", admin);
-        externalOracle.setMockApr(500); // 5% APR
+        // Deploy global oracle
+        globalOracle = new MockGlobalOracle();
+        globalOracle.setMockApr(underlyingVault, 500); // 5% APR
 
         // Deploy TermStrategyAprOracle
         address[] memory vaults = new address[](1);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = underlyingVault;
-        oracles[0] = address(externalOracle);
+        mappings[0] = VaultMapping({
+            vaultAddress: mappedVault,
+            vaultType: VaultType.STRATEGY
+        });
 
-        oracle = new TermStrategyAprOracle(admin, vaults, oracles);
+        oracle = new TermStrategyAprOracle(admin, address(globalOracle), vaults, mappings);
 
         // Deploy mock repo tokens with different redemption timestamps
         repoToken1 = new MockTermRepoToken(
@@ -75,36 +80,49 @@ contract TermStrategyAprOracleTest is Test {
 
     function test_constructor_success() public {
         address[] memory vaults = new address[](2);
-        address[] memory oracles = new address[](2);
+        VaultMapping[] memory mappings = new VaultMapping[](2);
         vaults[0] = address(0x100);
         vaults[1] = address(0x200);
-        oracles[0] = address(0x300);
-        oracles[1] = address(0x400);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
+        mappings[1] = VaultMapping({
+            vaultAddress: address(0x400),
+            vaultType: VaultType.MULTISTRAT
+        });
 
-        TermStrategyAprOracle newOracle = new TermStrategyAprOracle(admin, vaults, oracles);
+        TermStrategyAprOracle newOracle = new TermStrategyAprOracle(admin, address(globalOracle), vaults, mappings);
 
-        // Verify external oracles are set correctly
-        assertEq(address(newOracle.externalAprOracles(vaults[0])), oracles[0]);
-        assertEq(address(newOracle.externalAprOracles(vaults[1])), oracles[1]);
+        // Verify mappings are set correctly
+        (address mappedVault0, VaultType vaultType0) = newOracle.idleVaultRemappings(vaults[0]);
+        (address mappedVault1, VaultType vaultType1) = newOracle.idleVaultRemappings(vaults[1]);
+        assertEq(mappedVault0, mappings[0].vaultAddress);
+        assertEq(uint256(vaultType0), uint256(mappings[0].vaultType));
+        assertEq(mappedVault1, mappings[1].vaultAddress);
+        assertEq(uint256(vaultType1), uint256(mappings[1].vaultType));
         assertEq(newOracle.name(), "TermStrategyAprOracle");
     }
 
     function test_constructor_mismatchedInputLengths() public {
         address[] memory vaults = new address[](2);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = address(0x100);
         vaults[1] = address(0x200);
-        oracles[0] = address(0x300);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
 
         vm.expectRevert("Mismatched input lengths");
-        new TermStrategyAprOracle(admin, vaults, oracles);
+        new TermStrategyAprOracle(admin, address(globalOracle), vaults, mappings);
     }
 
     function test_constructor_emptyArrays() public {
         address[] memory vaults = new address[](0);
-        address[] memory oracles = new address[](0);
+        VaultMapping[] memory mappings = new VaultMapping[](0);
 
-        TermStrategyAprOracle newOracle = new TermStrategyAprOracle(admin, vaults, oracles);
+        TermStrategyAprOracle newOracle = new TermStrategyAprOracle(admin, address(globalOracle), vaults, mappings);
         assertEq(newOracle.name(), "TermStrategyAprOracle");
     }
 
@@ -120,8 +138,8 @@ contract TermStrategyAprOracleTest is Test {
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        // External oracle returns 500 (5% APR)
-        externalOracle.setMockApr(500);
+        // Global oracle returns 500 (5% APR) for the underlying vault
+        globalOracle.setMockApr(underlyingVault, 500);
 
         // Calculate expected APR with debt change
         int256 debtChange = 200e18;
@@ -138,11 +156,11 @@ contract TermStrategyAprOracleTest is Test {
         // Setup: Strategy with liquid balance
         strategy.setTotalAssetValue(1000e18);
         strategy.setTotalLiquidBalance(1000e18);
-        
+
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        externalOracle.setMockApr(500);
+        globalOracle.setMockApr(underlyingVault, 500);
 
         int256 debtChange = -200e18;
         uint256 adjustedLiquidBalance = 1000e18 - 200e18; // 800e18
@@ -162,7 +180,7 @@ contract TermStrategyAprOracleTest is Test {
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        externalOracle.setMockApr(500);
+        globalOracle.setMockApr(underlyingVault, 500);
 
         uint256 apr = oracle.aprAfterDebtChange(address(strategy), 0);
         assertEq(apr, 500, "APR should be 500 with no debt change");
@@ -187,7 +205,7 @@ contract TermStrategyAprOracleTest is Test {
         strategy.setTotalLiquidBalance(500e18);
         strategy.setTotalAssetValue(1000e18); // 300 + 200 + 500
 
-        externalOracle.setMockApr(500); // 5% for liquid balance
+        globalOracle.setMockApr(underlyingVault, 500); // 5% for liquid balance
 
         // Calculate expected APR
         // Repo token 1: discountRate = 1000, timeToMaturity = 30 days
@@ -222,10 +240,10 @@ contract TermStrategyAprOracleTest is Test {
         strategy.setTotalLiquidBalance(500e18);
         strategy.setTotalAssetValue(1000e18);
 
-        externalOracle.setMockApr(600); // 6%
+        globalOracle.setMockApr(underlyingVault, 600); // 6%
 
         int256 debtChange = 300e18;
-        
+
         // Repo token weighted APR doesn't change with debt change
         uint256 timeToMaturity1 = 30 days;
         uint256 repoApr1 = (1200 * timeToMaturity1) / SECONDS_PER_YEAR;
@@ -268,7 +286,7 @@ contract TermStrategyAprOracleTest is Test {
         strategy.setTotalLiquidBalance(900e18);
         strategy.setTotalAssetValue(1000e18);
 
-        externalOracle.setMockApr(500);
+        globalOracle.setMockApr(underlyingVault, 500);
 
         // For matured repo token, timeToMaturity should be treated as 1
         uint256 repoApr = (1000 * 1) / SECONDS_PER_YEAR;
@@ -329,96 +347,125 @@ contract TermStrategyAprOracleTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    BATCH SET EXTERNAL APR ORACLES TESTS
+                    BATCH SET IDLE VAULT REMAPPINGS TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_batchSetExternalAprOracles_success() public {
+    function test_batchSetIdleVaultRemappings_success() public {
         address[] memory vaults = new address[](2);
-        address[] memory oracles = new address[](2);
+        VaultMapping[] memory mappings = new VaultMapping[](2);
         vaults[0] = address(0x100);
         vaults[1] = address(0x200);
-        oracles[0] = address(0x300);
-        oracles[1] = address(0x400);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
+        mappings[1] = VaultMapping({
+            vaultAddress: address(0x400),
+            vaultType: VaultType.MULTISTRAT
+        });
 
         vm.prank(admin);
         vm.expectEmit(true, true, false, false);
-        emit ExternalAprOracleSet(vaults[0], oracles[0]);
+        emit ExternalAprOracleSet(vaults[0], mappings[0].vaultAddress);
         vm.expectEmit(true, true, false, false);
-        emit ExternalAprOracleSet(vaults[1], oracles[1]);
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        emit ExternalAprOracleSet(vaults[1], mappings[1].vaultAddress);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
 
-        assertEq(address(oracle.externalAprOracles(vaults[0])), oracles[0]);
-        assertEq(address(oracle.externalAprOracles(vaults[1])), oracles[1]);
+        (address mappedVault0, VaultType vaultType0) = oracle.idleVaultRemappings(vaults[0]);
+        (address mappedVault1, VaultType vaultType1) = oracle.idleVaultRemappings(vaults[1]);
+        assertEq(mappedVault0, mappings[0].vaultAddress);
+        assertEq(uint256(vaultType0), uint256(mappings[0].vaultType));
+        assertEq(mappedVault1, mappings[1].vaultAddress);
+        assertEq(uint256(vaultType1), uint256(mappings[1].vaultType));
     }
 
-    function test_batchSetExternalAprOracles_removeOracle() public {
-        // First set an oracle
+    function test_batchSetIdleVaultRemappings_removeMapping() public {
+        // First set a mapping
         address[] memory vaults = new address[](1);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = address(0x100);
-        oracles[0] = address(0x300);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
 
         vm.prank(admin);
-        oracle.batchSetExternalAprOracles(vaults, oracles);
-        assertEq(address(oracle.externalAprOracles(vaults[0])), oracles[0]);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
+        (address mappedVault, ) = oracle.idleVaultRemappings(vaults[0]);
+        assertEq(mappedVault, mappings[0].vaultAddress);
 
-        // Now remove it by setting to address(0)
-        oracles[0] = address(0);
+        // Now remove it by setting vaultAddress to address(0)
+        mappings[0].vaultAddress = address(0);
         vm.prank(admin);
         vm.expectEmit(true, false, false, false);
         emit ExternalAprOracleRemoved(vaults[0]);
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
 
-        assertEq(address(oracle.externalAprOracles(vaults[0])), address(0));
+        (address removedMappedVault, ) = oracle.idleVaultRemappings(vaults[0]);
+        assertEq(removedMappedVault, address(0));
     }
 
-    function test_batchSetExternalAprOracles_zeroAddressVault() public {
+    function test_batchSetIdleVaultRemappings_zeroAddressVault() public {
         address[] memory vaults = new address[](1);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = address(0);
-        oracles[0] = address(0x300);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
 
         vm.prank(admin);
         vm.expectRevert(TermStrategyAprOracle.ZeroAddress.selector);
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
     }
 
-    function test_batchSetExternalAprOracles_mismatchedLengths() public {
+    function test_batchSetIdleVaultRemappings_mismatchedLengths() public {
         address[] memory vaults = new address[](2);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = address(0x100);
         vaults[1] = address(0x200);
-        oracles[0] = address(0x300);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
 
         vm.prank(admin);
         vm.expectRevert("Mismatched input lengths");
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
     }
 
-    function test_batchSetExternalAprOracles_onlyGovernance() public {
+    function test_batchSetIdleVaultRemappings_onlyGovernance() public {
         address[] memory vaults = new address[](1);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = address(0x100);
-        oracles[0] = address(0x300);
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x300),
+            vaultType: VaultType.STRATEGY
+        });
 
         // Try to call from non-governance address
         vm.prank(user);
         vm.expectRevert("!governance");
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
     }
 
-    function test_batchSetExternalAprOracles_updateExistingOracle() public {
+    function test_batchSetIdleVaultRemappings_updateExistingMapping() public {
         address[] memory vaults = new address[](1);
-        address[] memory oracles = new address[](1);
+        VaultMapping[] memory mappings = new VaultMapping[](1);
         vaults[0] = underlyingVault; // Already set in setUp
-        oracles[0] = address(0x999); // New oracle
+        mappings[0] = VaultMapping({
+            vaultAddress: address(0x999),
+            vaultType: VaultType.MULTISTRAT
+        });
 
         vm.prank(admin);
         vm.expectEmit(true, true, false, false);
-        emit ExternalAprOracleSet(vaults[0], oracles[0]);
-        oracle.batchSetExternalAprOracles(vaults, oracles);
+        emit ExternalAprOracleSet(vaults[0], mappings[0].vaultAddress);
+        oracle.batchSetIdleVaultRemappings(vaults, mappings);
 
-        assertEq(address(oracle.externalAprOracles(vaults[0])), oracles[0]);
+        (address mappedVault, VaultType vaultType) = oracle.idleVaultRemappings(vaults[0]);
+        assertEq(mappedVault, mappings[0].vaultAddress);
+        assertEq(uint256(vaultType), uint256(mappings[0].vaultType));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -445,7 +492,7 @@ contract TermStrategyAprOracleTest is Test {
         strategy.setTotalAssetValue(1000e18);
 
         // External oracle APR for liquid balance
-        externalOracle.setMockApr(800); // 8%
+        globalOracle.setMockApr(underlyingVault, 800); // 8%
 
         // Calculate APR
         uint256 apr = oracle.aprAfterDebtChange(address(strategy), 0);
@@ -459,11 +506,12 @@ contract TermStrategyAprOracleTest is Test {
         // Simple scenario to verify debt change affects APR
         strategy.setTotalAssetValue(1000e18);
         strategy.setTotalLiquidBalance(1000e18);
-        
+
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        externalOracle.setMockApr(1000); // 10% APR
+        // Note: The oracle calls getStrategyApr with the underlyingVault address
+        globalOracle.setMockApr(underlyingVault, 1000); // 10% APR
 
         uint256 aprBefore = oracle.aprAfterDebtChange(address(strategy), 0);
         assertEq(aprBefore, 1000, "APR without debt change should be 1000");
@@ -491,7 +539,7 @@ contract TermStrategyAprOracleTest is Test {
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        externalOracle.setMockApr(500);
+        globalOracle.setMockApr(underlyingVault, 500);
 
         uint256 apr = oracle.aprAfterDebtChange(address(strategy), int256(uint256(debtChange)));
         assertEq(apr, 500, "APR should always be 500 for uniform rate");
@@ -510,7 +558,7 @@ contract TermStrategyAprOracleTest is Test {
         address[] memory emptyRepoTokens = new address[](0);
         strategy.setRepoTokenHoldings(emptyRepoTokens);
 
-        externalOracle.setMockApr(500);
+        globalOracle.setMockApr(underlyingVault, 500);
 
         uint256 apr = oracle.aprAfterDebtChange(address(strategy), -int256(uint256(debtChange)));
         assertEq(apr, 500, "APR should always be 500 for uniform rate");
