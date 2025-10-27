@@ -5,6 +5,8 @@ import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
 import {Strategy} from "../Strategy.sol";
 import {ITermRepoToken} from "../interfaces/term/ITermRepoToken.sol";
 import {ITermDiscountRateAdapter} from "../interfaces/term/ITermDiscountRateAdapter.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ITermAuction} from "../interfaces/term/ITermAuction.sol";
 
 // =============================================================
 //                          TYPES
@@ -100,7 +102,7 @@ contract TermStrategyAprOracle is
                // repoTokenConcentrationLimit
         ) = termStrategy.strategyState();
         
-        uint256 totalWeightedApr = _calculateTotalWeightedRepoTokenApr(termStrategy, discountRateAdapter);
+        uint256 totalWeightedRepoTokenApr = _calculateTotalWeightedRepoTokenApr(termStrategy, discountRateAdapter);
         
         uint256 liquidBalanceWeightedApr = _calculateTotalWeightedLiquidBalanceApr(termStrategy, assetVault, _debtChange);
 
@@ -117,7 +119,7 @@ contract TermStrategyAprOracle is
         }
 
         require(adjustedAssetValue > 0, "Adjusted asset value is zero");
-        return (totalWeightedApr + liquidBalanceWeightedApr) / adjustedAssetValue;
+        return (totalWeightedRepoTokenApr + liquidBalanceWeightedApr) / adjustedAssetValue;
     }
 
     // =============================================================
@@ -137,22 +139,17 @@ contract TermStrategyAprOracle is
         address[] memory repoTokens = termStrategy.repoTokenHoldings();
 
         uint256 repoTokenTokenHoldingValue;
-        uint256 repoTokenDiscountRate;
-        uint256 redemptionTimestamp;
         uint256 repoTokenApr;
-        
+
         for (uint256 i = 0; i < repoTokens.length; i++) {
+            // Get present value (current holding value)
             repoTokenTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(repoTokens[i]);
 
-            repoTokenDiscountRate = discountRateAdapter.getDiscountRate(repoTokens[i]);
+            // Skip if no holdings
+            if (repoTokenTokenHoldingValue == 0) continue;
 
-            (redemptionTimestamp, , , ) = ITermRepoToken(repoTokens[i]).config();
-            // Calculate the APR for the repo token based on its discount rate and time to maturity
-            repoTokenApr =
-                (repoTokenDiscountRate * 
-                (redemptionTimestamp > block.timestamp
-                    ? (redemptionTimestamp - block.timestamp)
-                    : 1)) / 360 days;
+            // Get APR directly from discount rate adapter
+            repoTokenApr = discountRateAdapter.getDiscountRate(repoTokens[i]);
 
             totalWeightedApr += repoTokenApr * repoTokenTokenHoldingValue;
         }
@@ -196,6 +193,7 @@ contract TermStrategyAprOracle is
       
         liquidBalanceWeightedApr = (externalApr * adjustedLiquidBalance);
     }
+
 
     // =============================================================
     //                      ADMIN FUNCTIONS

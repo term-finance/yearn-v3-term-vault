@@ -208,14 +208,12 @@ contract TermStrategyAprOracleTest is Test {
         globalOracle.setMockApr(underlyingVault, 500); // 5% for liquid balance
 
         // Calculate expected APR
-        // Repo token 1: discountRate = 1000, timeToMaturity = 30 days
-        uint256 timeToMaturity1 = 30 days;
-        uint256 repoApr1 = (1000 * timeToMaturity1) / SECONDS_PER_YEAR;
+        // Repo token 1: discountRate = 1000 (APR directly from adapter)
+        uint256 repoApr1 = 1000;
         uint256 weightedRepoApr1 = repoApr1 * 300e18;
 
-        // Repo token 2: discountRate = 800, timeToMaturity = 60 days  
-        uint256 timeToMaturity2 = 60 days;
-        uint256 repoApr2 = (800 * timeToMaturity2) / SECONDS_PER_YEAR;
+        // Repo token 2: discountRate = 800 (APR directly from adapter)
+        uint256 repoApr2 = 800;
         uint256 weightedRepoApr2 = repoApr2 * 200e18;
 
         // Liquid balance: externalApr = 500, liquidBalance = 500e18
@@ -245,8 +243,7 @@ contract TermStrategyAprOracleTest is Test {
         int256 debtChange = 300e18;
 
         // Repo token weighted APR doesn't change with debt change
-        uint256 timeToMaturity1 = 30 days;
-        uint256 repoApr1 = (1200 * timeToMaturity1) / SECONDS_PER_YEAR;
+        uint256 repoApr1 = 1200; // APR directly from adapter
         uint256 weightedRepoApr = repoApr1 * 500e18;
 
         // Liquid balance increases
@@ -288,8 +285,8 @@ contract TermStrategyAprOracleTest is Test {
 
         globalOracle.setMockApr(underlyingVault, 500);
 
-        // For matured repo token, timeToMaturity should be treated as 1
-        uint256 repoApr = (1000 * 1) / SECONDS_PER_YEAR;
+        // For matured repo token, APR comes directly from discount rate adapter
+        uint256 repoApr = 1000; // APR directly from adapter
         uint256 weightedRepoApr = repoApr * 100e18;
         uint256 weightedLiquidApr = 500 * 900e18;
         uint256 expectedApr = (weightedRepoApr + weightedLiquidApr) / 1000e18;
