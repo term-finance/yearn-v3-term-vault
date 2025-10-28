@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
-import {
-    ITermRepoCollateralManager
-} from "./interfaces/term/ITermRepoCollateralManager.sol";
-import {
-    ITermDiscountRateAdapter
-} from "./interfaces/term/ITermDiscountRateAdapter.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 struct RepoTokenListNode {
@@ -125,8 +119,7 @@ library RepoTokenList {
             );
             // Not matured yet
             weightedTimeToMaturity =
-                timeToMaturity *
-                repoTokenBalanceInBaseAssetPrecision;
+                timeToMaturity * repoTokenBalanceInBaseAssetPrecision;
         }
     }
 

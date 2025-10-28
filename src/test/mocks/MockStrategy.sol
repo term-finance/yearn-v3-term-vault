@@ -28,19 +28,21 @@ contract MockStrategy {
     uint256 public totalAssetValue;
     uint256 public totalLiquidBalance;
 
-    constructor(
-        address _assetVault,
-        address _discountRateAdapter
-    ) {
+    constructor(address _assetVault, address _discountRateAdapter) {
         strategyState.assetVault = _assetVault;
-        strategyState.discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
+        strategyState.discountRateAdapter = ITermDiscountRateAdapter(
+            _discountRateAdapter
+        );
     }
 
     function setRepoTokenHoldings(address[] memory _repoTokens) external {
         _repoTokenHoldings = _repoTokens;
     }
 
-    function setRepoTokenHoldingValue(address _repoToken, uint256 _value) external {
+    function setRepoTokenHoldingValue(
+        address _repoToken,
+        uint256 _value
+    ) external {
         _repoTokenHoldingValues[_repoToken] = _value;
     }
 
@@ -56,7 +58,9 @@ contract MockStrategy {
         return _repoTokenHoldings;
     }
 
-    function getRepoTokenHoldingValue(address _repoToken) external view returns (uint256) {
+    function getRepoTokenHoldingValue(
+        address _repoToken
+    ) external view returns (uint256) {
         return _repoTokenHoldingValues[_repoToken];
     }
 }

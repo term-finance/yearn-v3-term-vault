@@ -12,7 +12,9 @@ contract MockDiscountRateAdapter {
         discountRates[repoToken] = rate;
     }
 
-    function getDiscountRate(address repoToken) external view returns (uint256) {
+    function getDiscountRate(
+        address repoToken
+    ) external view returns (uint256) {
         return discountRates[repoToken];
     }
 }
