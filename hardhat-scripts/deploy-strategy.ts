@@ -187,9 +187,6 @@ async function main() {
     managedSigner
   );
 
-  await strategyContract.setProfitMaxUnlockTime(
-    process.env.PROFIT_MAX_UNLOCK_TIME!
-  );
   const tx1 = await strategyContract.setProfitMaxUnlockTime(
     process.env.PROFIT_MAX_UNLOCK_TIME!
   );
@@ -209,6 +206,7 @@ async function main() {
   const txPerformanceFee = await strategyContract.setPerformanceFee(process.env.PERFORMANCE_FEE!);
   await txPerformanceFee.wait();
   console.log("Set performance fee to:", process.env.PERFORMANCE_FEE, "Transaction hash:", txPerformanceFee.hash);
+  
 
   const tx4 = await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
   await tx4.wait();
