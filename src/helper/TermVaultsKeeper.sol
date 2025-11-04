@@ -146,8 +146,7 @@ contract TermVaultsKeeper is
     function rebalanceStrategies(
         address vault,
         address strategyToClose,
-        address strategyToIncrease,
-        uint256 maxLoss
+        address strategyToIncrease
     ) external onlyRole(KEEPER_ROLE) returns (uint256 debtMoved) {
         IVault vaultContract = IVault(vault);
         IStrategy strategyContract = IStrategy(strategyToClose);
