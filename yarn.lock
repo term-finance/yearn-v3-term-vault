@@ -3519,16 +3519,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"n@npm:^9.2.0":
-  version: 9.2.3
-  resolution: "n@npm:9.2.3"
-  bin:
-    n: bin/n
-  checksum: 10c0/1a229614f123d8f578d4ac9308e880819b98853ca59e77e6eb24a9700def38015e2ebe15b4bddf0b5b38fc47a24168461b2a188bd1608d580c550154fbaea8ae
-  conditions: "!os=win32"
-  languageName: node
-  linkType: hard
-
 "negotiator@npm:^1.0.0":
   version: 1.0.0
   resolution: "negotiator@npm:1.0.0"
@@ -4275,24 +4265,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"solc@npm:0.8.23":
-  version: 0.8.23
-  resolution: "solc@npm:0.8.23"
-  dependencies:
-    command-exists: "npm:^1.2.8"
-    commander: "npm:^8.1.0"
-    follow-redirects: "npm:^1.12.1"
-    js-sha3: "npm:0.8.0"
-    memorystream: "npm:^0.3.1"
-    n: "npm:^9.2.0"
-    semver: "npm:^5.5.0"
-    tmp: "npm:0.0.33"
-  bin:
-    solcjs: solc.js
-  checksum: 10c0/a72c116c5f023a3a3660c5e45971488b2f55b90b09382b46f2e716890f119a367ea88740362a3c26bbd1800f46fc44629d18052d6cf344f30e50efb2de1a50cf
-  languageName: node
-  linkType: hard
-
 "solc@npm:0.8.26":
   version: 0.8.26
   resolution: "solc@npm:0.8.26"
@@ -4307,6 +4279,23 @@ __metadata:
   bin:
     solcjs: solc.js
   checksum: 10c0/1eea35da99c228d0dc1d831c29f7819e7921b67824c889a5e5f2e471a2ef5856a15fabc0b5de067f5ba994fa36fb5a563361963646fe98dad58a0e4fa17c8b2d
+  languageName: node
+  linkType: hard
+
+"solc@npm:0.8.30":
+  version: 0.8.30
+  resolution: "solc@npm:0.8.30"
+  dependencies:
+    command-exists: "npm:^1.2.8"
+    commander: "npm:^8.1.0"
+    follow-redirects: "npm:^1.12.1"
+    js-sha3: "npm:0.8.0"
+    memorystream: "npm:^0.3.1"
+    semver: "npm:^5.5.0"
+    tmp: "npm:0.0.33"
+  bin:
+    solcjs: solc.js
+  checksum: 10c0/1f6e303b81dccac87278602f85ae626ef6c044979fcc46ee3e469868eb0dac4201b3d1f1e7cae84baf492e9c3cf3549d505c9f330f319f4e8eb9fc5db346602e
   languageName: node
   linkType: hard
 
@@ -4627,7 +4616,7 @@ __metadata:
     prettier: "npm:^3.0.0"
     prettier-plugin-solidity: "npm:^2.0.0"
     pretty-quick: "npm:^4.0.0"
-    solc: "npm:0.8.23"
+    solc: "npm:0.8.30"
     solhint: "npm:^5.0.5"
     solhint-plugin-prettier: "npm:^0.1.0"
     ts-node: "npm:^10.9.2"
