@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {
-    ITermDiscountRateAdapter
-} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {
     ITermController,
     AuctionMetadata

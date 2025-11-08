@@ -12,12 +12,8 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
-import {
-    ITermAuctionOfferLocker
-} from "./interfaces/term/ITermAuctionOfferLocker.sol";
-import {
-    ITermDiscountRateAdapter
-} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {
@@ -508,8 +504,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             simulatedLiquidityRatio = 0;
         } else {
             simulatedLiquidityRatio =
-                ((liquidBalance - proceeds) * 10 ** 18) /
-                assetValue;
+                ((liquidBalance - proceeds) * 10 ** 18) / assetValue;
         }
     }
 
@@ -568,7 +563,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 tokenTermController = address(strategyState.currTermController);
             } else if (
                 strategyState.prevTermController !=
-                ITermController(address(0)) &&
+                    ITermController(address(0)) &&
                 strategyState.prevTermController.isTermDeployed(repoToken)
             ) {
                 tokenTermController = address(strategyState.prevTermController);
@@ -679,8 +674,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         // Normalize the repoToken value and total asset value to 1e18 precision
         repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
         adjustedTotalAssetValue =
-            (adjustedTotalAssetValue * 1e18) /
-            PURCHASE_TOKEN_PRECISION;
+            (adjustedTotalAssetValue * 1e18) / PURCHASE_TOKEN_PRECISION;
 
         // Calculate the repoToken concentration
         return
