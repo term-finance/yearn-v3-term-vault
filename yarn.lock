@@ -1017,6 +1017,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@pkgr/core@npm:^0.2.7":
+  version: 0.2.9
+  resolution: "@pkgr/core@npm:0.2.9"
+  checksum: 10c0/ac8e4e8138b1a7a4ac6282873aef7389c352f1f8b577b4850778f5182e4a39a5241facbe48361fec817f56d02b51691b383010843fb08b34a8e8ea3614688fd5
+  languageName: node
+  linkType: hard
+
 "@pnpm/config.env-replace@npm:^1.1.0":
   version: 1.1.0
   resolution: "@pnpm/config.env-replace@npm:1.1.0"
@@ -2886,10 +2893,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ignore@npm:^7.0.3":
-  version: 7.0.4
-  resolution: "ignore@npm:7.0.4"
-  checksum: 10c0/90e1f69ce352b9555caecd9cbfd07abe7626d312a6f90efbbb52c7edca6ea8df065d66303863b30154ab1502afb2da8bc59d5b04e1719a52ef75bbf675c488eb
+"ignore@npm:^7.0.5":
+  version: 7.0.5
+  resolution: "ignore@npm:7.0.5"
+  checksum: 10c0/ae00db89fe873064a093b8999fe4cc284b13ef2a178636211842cceb650b9c3e390d3339191acb145d81ed5379d2074840cf0c33a20bdbd6f32821f79eb4ad5d
   languageName: node
   linkType: hard
 
@@ -3865,11 +3872,11 @@ __metadata:
   linkType: hard
 
 "pretty-quick@npm:^4.0.0":
-  version: 4.1.1
-  resolution: "pretty-quick@npm:4.1.1"
+  version: 4.2.2
+  resolution: "pretty-quick@npm:4.2.2"
   dependencies:
-    find-up: "npm:^5.0.0"
-    ignore: "npm:^7.0.3"
+    "@pkgr/core": "npm:^0.2.7"
+    ignore: "npm:^7.0.5"
     mri: "npm:^1.2.0"
     picocolors: "npm:^1.1.1"
     picomatch: "npm:^4.0.2"
@@ -3879,7 +3886,7 @@ __metadata:
     prettier: ^3.0.0
   bin:
     pretty-quick: lib/cli.mjs
-  checksum: 10c0/c0362aff7d7679f58c044891047e7bbb03d461543aa30b1c57fef9400fa8c4d1daef4aa2b146a9c9072ce050c60860a88eb64b3fd722826dc56616f7cd1d6011
+  checksum: 10c0/3062677741d144e0439971f24742b39eb1ae78b263c5431b2d320b98a4d91de033e1a0b91267c2df7b51159f37446d250c6e33c094b56aa1185e6a4c38d5604f
   languageName: node
   linkType: hard
 
