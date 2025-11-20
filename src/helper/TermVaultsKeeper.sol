@@ -40,6 +40,13 @@ interface ICommonReportTrigger {
     ) external view returns (bool, bytes memory);
 }
 
+interface ITermRepoServicer {
+    function redeemTermRepoTokens(
+        address owner,
+        uint256 amount
+    ) external;
+}
+
 contract TermVaultsKeeper is
     Initializable,
     AccessControlUpgradeable,
@@ -172,6 +179,29 @@ contract TermVaultsKeeper is
         
         return currentDebtToClose;
     } 
+
+    function redeemAndWithdraw(
+        address vault,
+        address strategyToClose,
+        address termRepoServicer,
+        uint256 redemptionAmount
+    ) external onlyRole(KEEPER_ROLE) returns (uint256) {
+        IVault vaultContract = IVault(vault);
+        
+        // Get current debt
+        StrategyParams memory params = vaultContract.strategies(strategyToClose);
+        uint256 currentDebt = params.current_debt;
+        require(currentDebt > 0, "No debt to move");
+        
+        // Step 1: Redeem repo tokens - assets now loose in strategy
+        ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(strategyToClose, redemptionAmount);
+        
+        // Step 2: Reduce debt - vault pulls the loose assets
+        uint256 newTargetDebt = currentDebt - redemptionAmount;
+        vaultContract.update_debt(strategyToClose, newTargetDebt, 0);
+        
+        return redemptionAmount;
+    }
 
     function _withdraw(
         address vault,
