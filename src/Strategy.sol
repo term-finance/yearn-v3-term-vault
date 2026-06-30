@@ -1328,13 +1328,20 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * Should not rely on asset.balanceOf(address(this)) calls other than
-     * for diff accounting purposes.
-     *
      * Any difference between `_amount` and what is actually freed will be
      * counted as a loss and passed on to the withdrawer. This means
      * care should be taken in times of illiquidity. It may be better to revert
      * if withdraws are simply illiquid so not to realize incorrect losses.
+     *
+     * NOTE: This intentionally reads `asset.balanceOf(address(this))` to
+     * capture the already-loose balance. `_redeemRepoTokens` treats its
+     * argument as the target loose balance to end with, so the target must
+     * be `loose + _amount` to leave the strategy holding the full amount the
+     * {TokenizedStrategy} expects (`idle + _amount`). Targeting only `_amount`
+     * would re-deposit the pre-existing loose balance and under-free the
+     * withdrawal, realizing a phantom loss for the withdrawer. This is the
+     * one place `balanceOf` is relied on beyond diff accounting, and it is
+     * deliberate.
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
