@@ -1339,7 +1339,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override whenNotPaused {
-        _redeemRepoTokens(_amount);
+        uint256 loose = IERC20(asset).balanceOf(address(this));
+        _redeemRepoTokens(loose + _amount);
     }
 
     /**
