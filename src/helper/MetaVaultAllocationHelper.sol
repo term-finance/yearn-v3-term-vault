@@ -43,9 +43,6 @@ contract MetaVaultAllocationHelper {
     /// metavault → ordered strategy list for enumeration
     mapping(address => address[]) private _strategyList;
 
-    /// metavault → strategy → 1-indexed position in _strategyList (0 = absent)
-    mapping(address => mapping(address => uint256)) private _strategyIndex;
-
     // ─────────────────────────────────────────────────────────
     //  Events
     // ─────────────────────────────────────────────────────────
@@ -245,7 +242,6 @@ contract MetaVaultAllocationHelper {
         // Clear existing stored state for this metavault
         address[] storage existing = _strategyList[metavault];
         for (uint256 i; i < existing.length; ++i) {
-            delete _strategyIndex[metavault][existing[i]];
             delete _allocBps[metavault][existing[i]];
         }
         delete _strategyList[metavault];
@@ -254,7 +250,6 @@ contract MetaVaultAllocationHelper {
         for (uint256 i; i < strategies.length; ++i) {
             address strategy = strategies[i];
             _strategyList[metavault].push(strategy);
-            _strategyIndex[metavault][strategy] = _strategyList[metavault].length;
             _allocBps[metavault][strategy] = bpsTargets[i];
         }
 
