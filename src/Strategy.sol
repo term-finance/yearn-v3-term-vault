@@ -7,6 +7,7 @@ import {
     IERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
@@ -1407,7 +1408,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return _totalLiquidBalance();
+        uint256 converted = YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
+        uint256 executable = YEARN_VAULT.maxWithdraw(address(this));
+        return IERC20(asset).balanceOf(address(this)) + Math.min(converted, executable);
     }
 
     /**
