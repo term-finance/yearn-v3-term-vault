@@ -212,6 +212,10 @@ async function main() {
   await tx4.wait();
   console.log("Set performance fee recipient to:", process.env.FEE_RECIPIENT, "Transaction hash:", tx4.hash);
 
+  const tx45 = await strategyContract.setPerformanceFee(0);
+  await tx45.wait();
+  console.log("Set performance fee  to 0", "Transaction hash:", tx45.hash);
+
   const tx5 = await eventEmitter.pairVaultContract(strategy.address);
   await tx5.wait();
   console.log("Paired strategy with event emitter. Transaction hash:", tx5.hash);
