@@ -1408,7 +1408,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        uint256 converted = YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
+        uint256 converted = _assetBalance();
         uint256 executable = YEARN_VAULT.maxWithdraw(address(this));
         return IERC20(asset).balanceOf(address(this)) + Math.min(converted, executable);
     }
