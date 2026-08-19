@@ -517,6 +517,10 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
             );
     }
 
+    function supportsBuyRepoToken() external pure returns (bool) {
+        return true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                     INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
