@@ -69,6 +69,13 @@ contract TermVaultEventEmitter is
         emit DiscountRateMarkupUpdated(oldMarkup, newMarkup);
     }
 
+    function emitDiscountRateBuyMarkupUpdated(
+        uint256 oldMarkup,
+        uint256 newMarkup
+    ) external onlyRole(VAULT_CONTRACT) {
+        emit DiscountRateBuyMarkupUpdated(oldMarkup, newMarkup);
+    }
+
     function emitMinCollateralRatioUpdated(
         address collateral,
         uint256 minCollateralRatio

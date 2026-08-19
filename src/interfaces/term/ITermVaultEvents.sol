@@ -18,6 +18,8 @@ interface ITermVaultEvents {
 
     event DiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
 
+    event DiscountRateBuyMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
+
     event MinCollateralRatioUpdated(
         address collateral,
         uint256 minCollateralRatio
@@ -66,6 +68,11 @@ interface ITermVaultEvents {
     ) external;
 
     function emitDiscountRateMarkupUpdated(
+        uint256 oldMarkup,
+        uint256 newMarkup
+    ) external;
+
+    function emitDiscountRateBuyMarkupUpdated(
         uint256 oldMarkup,
         uint256 newMarkup
     ) external;
