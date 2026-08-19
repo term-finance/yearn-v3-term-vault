@@ -160,7 +160,7 @@ contract Setup is ExtendedTest, IEvents {
         address termVaultEventEmitter,
         address governor,
         address termController
-    ) internal returns (IStrategyInterface) {
+    ) internal virtual returns (IStrategyInterface) {
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
             mockYearnVault,
