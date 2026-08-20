@@ -238,6 +238,146 @@ contract TestUSDCBuyRepoToken is Setup {
         termStrategy.buyRepoToken(address(repoToken1Week), 0);
     }
 
+    /// @dev The new validateRepoToken gate in buyRepoToken rejects matured
+    /// repoTokens. When redemption is failing (default / servicer not open),
+    /// the token stays in the strategy's inventory with no way to sell it out.
+    function testBuyMaturedRepoTokenReverts() public {
+        uint256 repoTokenAmount = 1e18;
+        _seedInventory(repoTokenAmount);
+
+        // Redemption fails, so the matured token cannot be swept out of inventory
+        repoToken1Week.mockServicer().setRedemptionFailure(true);
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        mockUSDC.mint(buyer, 100e6);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
+        termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
+        vm.stopPrank();
+
+        // Redemption sweep cannot clear it either: the inventory is stuck
+        termStrategy.auctionClosed();
+        assertEq(
+            repoToken1Week.balanceOf(address(strategy)),
+            repoTokenAmount
+        );
+    }
+
+    /// @dev Governance raising the required min collateral ratio above the
+    /// term's maintenance ratio invalidates an already-held repoToken.
+    function testBuyRepoTokenRevertsWhenMinCollateralRatioRaised() public {
+        uint256 repoTokenAmount = 1e18;
+        _seedInventory(repoTokenAmount);
+
+        // Term maintenance ratio for mockCollateral is 1e18; require more
+        vm.prank(governor);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 1.5e18);
+
+        mockUSDC.mint(buyer, 100e6);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
+        termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
+        vm.stopPrank();
+    }
+
+    /// @dev Zeroing a collateral token's params (de-listing it) also
+    /// invalidates an already-held repoToken backed by that collateral.
+    function testBuyRepoTokenRevertsWhenCollateralTokenDelisted() public {
+        uint256 repoTokenAmount = 1e18;
+        _seedInventory(repoTokenAmount);
+
+        vm.prank(governor);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0);
+
+        mockUSDC.mint(buyer, 100e6);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
+        termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
+        vm.stopPrank();
+    }
+
+    /// @dev A repoToken denominated in some other purchase token can only reach
+    /// the strategy by donation; buyRepoToken now refuses to price it.
+    function testBuyRepoTokenRevertsOnPurchaseTokenMismatch() public {
+        uint256 repoTokenAmount = 1e18;
+        ERC20Mock otherAsset = new ERC20Mock();
+        MockTermRepoToken foreignRepoToken = new MockTermRepoToken(
+            bytes32("foreign repo token"),
+            address(otherAsset),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 1 weeks
+        );
+
+        // Donate the foreign repoToken into the strategy
+        foreignRepoToken.mint(address(strategy), repoTokenAmount);
+        // Priced normally, so the purchase token mismatch is the only failure
+        termController.setOracleRate(foreignRepoToken.termRepoId(), 0.05e18);
+
+        mockUSDC.mint(buyer, 100e6);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(foreignRepoToken)
+            )
+        );
+        termStrategy.buyRepoToken(address(foreignRepoToken), repoTokenAmount);
+        vm.stopPrank();
+    }
+
+    /// @dev Documents the asymmetry introduced by the new gate: once a
+    /// repoToken is in the list, validateAndInsertRepoToken short-circuits and
+    /// skips the collateral checks, so sellRepoToken still accepts a token that
+    /// buyRepoToken now rejects. Tokens can enter but not leave.
+    function testSellStillAllowedAfterMinCollateralRatioRaised() public {
+        uint256 repoTokenAmount = 1e18;
+        _seedInventory(repoTokenAmount);
+
+        vm.prank(governor);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 1.5e18);
+
+        repoToken1Week.mint(seller, repoTokenAmount);
+        vm.prank(seller);
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenAmount);
+
+        assertEq(
+            repoToken1Week.balanceOf(address(strategy)),
+            repoTokenAmount * 2
+        );
+
+        mockUSDC.mint(buyer, 100e6);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
+        termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
+        vm.stopPrank();
+    }
+
     function testSetDiscountRateBuyMarkup() public {
         vm.expectRevert();
         termStrategy.setDiscountRateBuyMarkup(12345);

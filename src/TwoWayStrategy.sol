@@ -1203,6 +1203,14 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
             revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
+        (bool isRepoTokenValid, ) = repoTokenListData.validateRepoToken(
+            ITermRepoToken(repoToken),
+            address(asset)
+        );
+        if (!isRepoTokenValid) {
+            revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
+
         // Redeem matured inventory first so we don't sell tokens that should be cash
         _redeemRepoTokens(0);
 
