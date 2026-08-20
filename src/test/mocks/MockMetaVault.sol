@@ -21,7 +21,9 @@ contract MockMetaVault {
         asset = asset_;
     }
 
-    function strategies(address strategy) external view returns (StrategyParams memory) {
+    function strategies(
+        address strategy
+    ) external view returns (StrategyParams memory) {
         return _strategies[strategy];
     }
 

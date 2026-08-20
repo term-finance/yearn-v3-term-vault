@@ -52,7 +52,9 @@ contract MetaVaultAllocationHelperTest is Test {
         assertEq(helper.getAllocation(address(vault), s2), 3000, "s2 bps");
         assertEq(helper.getAllocation(address(vault), s3), 2000, "s3 bps");
 
-        (address[] memory strats, uint256[] memory bps) = helper.getAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps) = helper.getAllocations(
+            address(vault)
+        );
         assertEq(strats.length, 3, "list length");
         assertEq(bps.length, 3, "bps length");
 
@@ -74,8 +76,8 @@ contract MetaVaultAllocationHelperTest is Test {
     function test_GetActiveAllocations_NoStaleReturnsStoredSet() public {
         _set(_addrs(s1, s2, s3), _bps(5000, 3000, 2000));
 
-        (address[] memory strats, uint256[] memory bps, bool hasStale) =
-            helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, bool hasStale) = helper
+            .getActiveAllocations(address(vault));
 
         assertFalse(hasStale, "no stale entries");
         assertEq(strats.length, 3);
@@ -90,11 +92,13 @@ contract MetaVaultAllocationHelperTest is Test {
 
     /// @dev A 0 bps target is legal and must survive the read path untouched
     ///      when nothing is stale.
-    function test_GetActiveAllocations_ZeroBpsEntryIsPreservedWhenNoStale() public {
+    function test_GetActiveAllocations_ZeroBpsEntryIsPreservedWhenNoStale()
+        public
+    {
         _set(_addrs(s1, s2, s3), _bps(10_000, 0, 0));
 
-        (address[] memory strats, uint256[] memory bps, bool hasStale) =
-            helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, bool hasStale) = helper
+            .getActiveAllocations(address(vault));
 
         assertFalse(hasStale);
         assertEq(strats.length, 3);
@@ -108,7 +112,13 @@ contract MetaVaultAllocationHelperTest is Test {
         uint256[] memory bps = _bps(5000, 3000, 2000);
 
         vm.expectEmit(true, true, false, true);
-        emit AllocationsUpdated(address(vault), allocator, strats, bps, block.timestamp);
+        emit AllocationsUpdated(
+            address(vault),
+            allocator,
+            strats,
+            bps,
+            block.timestamp
+        );
 
         vm.prank(allocator);
         helper.setAllocations(address(vault), strats, bps);
@@ -141,7 +151,7 @@ contract MetaVaultAllocationHelperTest is Test {
         assertEq(helper.getAllocation(address(vault), s3), 6000, "s3 updated");
         assertEq(helper.getAllocation(address(vault), s4), 4000, "s4 added");
 
-        (address[] memory strats,) = helper.getAllocations(address(vault));
+        (address[] memory strats, ) = helper.getAllocations(address(vault));
         assertEq(strats.length, 2);
         assertEq(strats[0], s3);
         assertEq(strats[1], s4);
@@ -178,8 +188,8 @@ contract MetaVaultAllocationHelperTest is Test {
 
         vault.deactivateStrategy(s1);
 
-        (address[] memory strats, uint256[] memory bps, bool hasStale) =
-            helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, bool hasStale) = helper
+            .getActiveAllocations(address(vault));
 
         assertTrue(hasStale, "stale flagged");
         assertEq(strats.length, 2, "stale entry dropped");
@@ -208,8 +218,8 @@ contract MetaVaultAllocationHelperTest is Test {
 
         vault.deactivateStrategy(s4);
 
-        (address[] memory strats, uint256[] memory bps, bool hasStale) =
-            helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, bool hasStale) = helper
+            .getActiveAllocations(address(vault));
 
         assertTrue(hasStale);
         assertEq(strats.length, 3);
@@ -229,8 +239,8 @@ contract MetaVaultAllocationHelperTest is Test {
         vault.deactivateStrategy(s2);
         vault.deactivateStrategy(s3);
 
-        (address[] memory strats, uint256[] memory bps, bool hasStale) =
-            helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, bool hasStale) = helper
+            .getActiveAllocations(address(vault));
 
         assertTrue(hasStale);
         assertEq(strats.length, 0, "empty, not reverting");
@@ -238,14 +248,19 @@ contract MetaVaultAllocationHelperTest is Test {
     }
 
     function test_GetActiveAllocations_UnknownVaultReturnsEmpty() public view {
-        (address[] memory strats,, bool hasStale) = helper.getActiveAllocations(address(0xF00D));
+        (address[] memory strats, , bool hasStale) = helper
+            .getActiveAllocations(address(0xF00D));
         assertEq(strats.length, 0);
         assertFalse(hasStale);
     }
 
     function test_GetStaleStrategies() public {
         _set(_addrs(s1, s2, s3), _bps(5000, 3000, 2000));
-        assertEq(helper.getStaleStrategies(address(vault)).length, 0, "none stale yet");
+        assertEq(
+            helper.getStaleStrategies(address(vault)).length,
+            0,
+            "none stale yet"
+        );
 
         vault.deactivateStrategy(s2);
 
@@ -291,7 +306,8 @@ contract MetaVaultAllocationHelperTest is Test {
 
         vault.deactivateStrategy(s1);
 
-        (address[] memory strats, uint256[] memory bps,) = helper.getActiveAllocations(address(vault));
+        (address[] memory strats, uint256[] memory bps, ) = helper
+            .getActiveAllocations(address(vault));
         assertEq(strats.length, 2);
         assertEq(bps[0] + bps[1], 10_000);
     }
@@ -304,13 +320,21 @@ contract MetaVaultAllocationHelperTest is Test {
     function test_RevertWhen_DuplicateStrategyNonAdjacent() public {
         vm.prank(allocator);
         vm.expectRevert("duplicate strategy");
-        helper.setAllocations(address(vault), _addrs(s1, s2, s1), _bps(2000, 3000, 5000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s1, s2, s1),
+            _bps(2000, 3000, 5000)
+        );
     }
 
     function test_RevertWhen_DuplicateStrategyAdjacent() public {
         vm.prank(allocator);
         vm.expectRevert("duplicate strategy");
-        helper.setAllocations(address(vault), _addrs(s1, s1, s2), _bps(2000, 3000, 5000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s1, s1, s2),
+            _bps(2000, 3000, 5000)
+        );
     }
 
     // ─────────────────────────────────────────────────────────
@@ -320,13 +344,21 @@ contract MetaVaultAllocationHelperTest is Test {
     function test_RevertWhen_CallerNotAllocator() public {
         vm.prank(notAllocator);
         vm.expectRevert("not allocator");
-        helper.setAllocations(address(vault), _addrs(s1, s2, s3), _bps(5000, 3000, 2000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s1, s2, s3),
+            _bps(5000, 3000, 2000)
+        );
     }
 
     function test_RevertWhen_SumNotTenThousand() public {
         vm.prank(allocator);
         vm.expectRevert("must sum to 10000 bps");
-        helper.setAllocations(address(vault), _addrs(s1, s2, s3), _bps(5000, 3000, 1000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s1, s2, s3),
+            _bps(5000, 3000, 1000)
+        );
     }
 
     function test_RevertWhen_LengthMismatch() public {
@@ -342,7 +374,11 @@ contract MetaVaultAllocationHelperTest is Test {
     function test_RevertWhen_Empty() public {
         vm.prank(allocator);
         vm.expectRevert("empty");
-        helper.setAllocations(address(vault), new address[](0), new uint256[](0));
+        helper.setAllocations(
+            address(vault),
+            new address[](0),
+            new uint256[](0)
+        );
     }
 
     function test_RevertWhen_SingleEntryExceedsTenThousand() public {
@@ -363,7 +399,11 @@ contract MetaVaultAllocationHelperTest is Test {
 
         vm.prank(allocator);
         vm.expectRevert("strategy not active in vault");
-        helper.setAllocations(address(vault), _addrs(s1, s2, s3), _bps(5000, 3000, 2000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s1, s2, s3),
+            _bps(5000, 3000, 2000)
+        );
     }
 
     /// @dev A failed setAllocations must leave the prior set untouched.
@@ -372,7 +412,11 @@ contract MetaVaultAllocationHelperTest is Test {
 
         vm.prank(allocator);
         vm.expectRevert("duplicate strategy");
-        helper.setAllocations(address(vault), _addrs(s4, s4, s1), _bps(2000, 3000, 5000));
+        helper.setAllocations(
+            address(vault),
+            _addrs(s4, s4, s1),
+            _bps(2000, 3000, 5000)
+        );
 
         assertEq(helper.strategyCount(address(vault)), 3, "prior set intact");
         assertEq(helper.getAllocation(address(vault), s1), 5000);
@@ -399,14 +443,22 @@ contract MetaVaultAllocationHelperTest is Test {
         helper.setAllocations(address(vault), strats, bps);
     }
 
-    function _addrs(address a, address b, address c) internal pure returns (address[] memory arr) {
+    function _addrs(
+        address a,
+        address b,
+        address c
+    ) internal pure returns (address[] memory arr) {
         arr = new address[](3);
         arr[0] = a;
         arr[1] = b;
         arr[2] = c;
     }
 
-    function _bps(uint256 a, uint256 b, uint256 c) internal pure returns (uint256[] memory arr) {
+    function _bps(
+        uint256 a,
+        uint256 b,
+        uint256 c
+    ) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](3);
         arr[0] = a;
         arr[1] = b;

@@ -8,7 +8,9 @@ interface IVault {
         uint256 current_debt;
         uint256 max_debt;
     }
-    function strategies(address strategy) external view returns (StrategyParams memory);
+    function strategies(
+        address strategy
+    ) external view returns (StrategyParams memory);
     function asset() external view returns (address);
 }
 
@@ -21,7 +23,6 @@ interface IVault {
 ///           remaining active strategies proportionally so the result always sums to 10_000
 ///         - getStaleStrategies surfaces forgotten entries so the service can alert
 contract MetaVaultAllocationHelper {
-
     // ─────────────────────────────────────────────────────────
     //  Access
     // ─────────────────────────────────────────────────────────
@@ -69,15 +70,19 @@ contract MetaVaultAllocationHelper {
     // ─────────────────────────────────────────────────────────
 
     /// @notice Stored target bps for a single strategy in a metavault
-    function getAllocation(address metavault, address strategy)
-        external view returns (uint256 bps)
-    {
+    function getAllocation(
+        address metavault,
+        address strategy
+    ) external view returns (uint256 bps) {
         return _allocBps[metavault][strategy];
     }
 
     /// @notice All stored strategies and bps targets for a metavault (unfiltered)
-    function getAllocations(address metavault)
-        external view
+    function getAllocations(
+        address metavault
+    )
+        external
+        view
         returns (address[] memory strategies, uint256[] memory bpsTargets)
     {
         strategies = _strategyList[metavault];
@@ -93,10 +98,10 @@ contract MetaVaultAllocationHelper {
     }
 
     /// @notice Live vault params for a strategy directly from the vault
-    function getStrategyParams(address metavault, address strategy)
-        external view
-        returns (IVault.StrategyParams memory)
-    {
+    function getStrategyParams(
+        address metavault,
+        address strategy
+    ) external view returns (IVault.StrategyParams memory) {
         return IVault(metavault).strategies(strategy);
     }
 
@@ -112,8 +117,11 @@ contract MetaVaultAllocationHelper {
     ///         Reverts if stale entries exist and every remaining active strategy has a
     ///         0 bps target — no valid allocation can be derived, so the allocator must
     ///         submit a fresh setAllocations call.
-    function getActiveAllocations(address metavault)
-        external view
+    function getActiveAllocations(
+        address metavault
+    )
+        external
+        view
         returns (
             address[] memory strategies,
             uint256[] memory bpsTargets,
@@ -124,7 +132,7 @@ contract MetaVaultAllocationHelper {
         uint256 len = stored.length;
 
         address[] memory tmpStrats = new address[](len);
-        uint256[] memory tmpBps    = new uint256[](len);
+        uint256[] memory tmpBps = new uint256[](len);
         uint256 count;
         uint256 activeSum;
 
@@ -132,8 +140,8 @@ contract MetaVaultAllocationHelper {
             address s = stored[i];
             if (IVault(metavault).strategies(s).activation != 0) {
                 tmpStrats[count] = s;
-                tmpBps[count]    = _allocBps[metavault][s];
-                activeSum       += _allocBps[metavault][s];
+                tmpBps[count] = _allocBps[metavault][s];
+                activeSum += _allocBps[metavault][s];
                 ++count;
             } else {
                 hasStale = true;
@@ -168,7 +176,7 @@ contract MetaVaultAllocationHelper {
         for (uint256 i; i < count; ++i) {
             strategies[i] = tmpStrats[i];
             if (i < count - 1) {
-                bpsTargets[i] = tmpBps[i] * 10_000 / activeSum;
+                bpsTargets[i] = (tmpBps[i] * 10_000) / activeSum;
                 allocated += bpsTargets[i];
             } else {
                 bpsTargets[i] = 10_000 - allocated;
@@ -178,10 +186,9 @@ contract MetaVaultAllocationHelper {
 
     /// @notice Returns any stored strategies no longer active in the vault.
     ///         Use for monitoring and alerting — does not modify state.
-    function getStaleStrategies(address metavault)
-        external view
-        returns (address[] memory stale)
-    {
+    function getStaleStrategies(
+        address metavault
+    ) external view returns (address[] memory stale) {
         address[] storage stored = _strategyList[metavault];
         uint256 len = stored.length;
 

@@ -174,8 +174,8 @@ contract RepoTokenListTest is KontrolTest {
                     repoRedemptionHaircut
                 );
 
-            uint256 weightedTimeToMaturity = timeToMaturity *
-                repoTokenAmountInBaseAssetPrecision;
+            uint256 weightedTimeToMaturity =
+                timeToMaturity * repoTokenAmountInBaseAssetPrecision;
 
             cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
             cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
@@ -254,13 +254,14 @@ contract RepoTokenListTest is KontrolTest {
                     repoRedemptionHaircut
                 );
 
-            uint256 timeLeftToMaturityDayFraction = (timeToMaturity *
-                purchaseTokenPrecision) / 360 days;
+            uint256 timeLeftToMaturityDayFraction =
+                (timeToMaturity * purchaseTokenPrecision) / 360 days;
 
-            uint256 presentValue = (repoTokenAmountInBaseAssetPrecision *
-                purchaseTokenPrecision) /
-                (purchaseTokenPrecision +
-                    ((discountRate * timeLeftToMaturityDayFraction) / 1e18));
+            uint256 presentValue =
+                (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) /
+                    (purchaseTokenPrecision +
+                        ((discountRate * timeLeftToMaturityDayFraction) /
+                            1e18));
 
             totalPresentValue += presentValue;
 

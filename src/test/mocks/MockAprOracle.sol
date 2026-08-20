@@ -10,7 +10,10 @@ import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
 contract MockAprOracle is AprOracleBase {
     uint256 public mockApr;
 
-    constructor(string memory _name, address _governance) AprOracleBase(_name, _governance) {
+    constructor(
+        string memory _name,
+        address _governance
+    ) AprOracleBase(_name, _governance) {
         mockApr = 1000; // 10% APR (in basis points)
     }
 

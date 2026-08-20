@@ -10,9 +10,7 @@ import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
 import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
-import {
-    ERC1967Proxy
-} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC4626Mock} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
 
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
@@ -21,13 +19,9 @@ import {TermVaultEventEmitter} from "../../TermVaultEventEmitter.sol";
 import {MockTermAuction} from "../mocks/MockTermAuction.sol";
 import {MockUSDC} from "../mocks/MockUSDC.sol";
 
-import {
-    MockTermAuctionOfferLocker
-} from "../mocks/MockTermAuctionOfferLocker.sol";
+import {MockTermAuctionOfferLocker} from "../mocks/MockTermAuctionOfferLocker.sol";
 import {MockTermController} from "../mocks/MockTermController.sol";
-import {
-    MockTermRepoCollateralManager
-} from "../mocks/MockTermRepoCollateralManager.sol";
+import {MockTermRepoCollateralManager} from "../mocks/MockTermRepoCollateralManager.sol";
 import {MockTermRepoServicer} from "../mocks/MockTermRepoServicer.sol";
 import {MockTermRepoToken} from "../mocks/MockTermRepoToken.sol";
 

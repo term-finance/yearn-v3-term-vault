@@ -30,11 +30,11 @@ library RepoTokenUtils {
         uint256 redemptionTimestamp,
         uint256 discountRate
     ) internal view returns (uint256 presentValue) {
-        uint256 timeLeftToMaturityDayFraction = block.timestamp >
-            redemptionTimestamp
-            ? 0
-            : ((redemptionTimestamp - block.timestamp) *
-                purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
+        uint256 timeLeftToMaturityDayFraction =
+            block.timestamp > redemptionTimestamp
+                ? 0
+                : ((redemptionTimestamp - block.timestamp) *
+                    purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
 
         // repoTokenAmountInBaseAssetPrecision / (1 + r * days / 360)
         presentValue =
@@ -65,13 +65,14 @@ library RepoTokenUtils {
     ) internal view returns (uint256 repoTokenAmountInBaseAssetPrecision) {
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
         uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
-        repoTokenAmountInBaseAssetPrecision = repoRedemptionHaircut != 0
-            ? (redemptionValue *
-                repoRedemptionHaircut *
-                repoTokenAmount *
-                purchaseTokenPrecision) /
-                (repoTokenPrecision * RATE_PRECISION * 1e18)
-            : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) /
-                (repoTokenPrecision * RATE_PRECISION);
+        repoTokenAmountInBaseAssetPrecision =
+            repoRedemptionHaircut != 0
+                ? (redemptionValue *
+                    repoRedemptionHaircut *
+                    repoTokenAmount *
+                    purchaseTokenPrecision) /
+                    (repoTokenPrecision * RATE_PRECISION * 1e18)
+                : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) /
+                    (repoTokenPrecision * RATE_PRECISION);
     }
 }
