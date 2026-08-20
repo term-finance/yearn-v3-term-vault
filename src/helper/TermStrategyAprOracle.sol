@@ -3,10 +3,7 @@ pragma solidity ^0.8.18;
 
 import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
 import {Strategy} from "../Strategy.sol";
-import {ITermRepoToken} from "../interfaces/term/ITermRepoToken.sol";
 import {ITermDiscountRateAdapter} from "../interfaces/term/ITermDiscountRateAdapter.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ITermAuction} from "../interfaces/term/ITermAuction.sol";
 
 // =============================================================
 //                          TYPES
@@ -39,10 +36,7 @@ interface IAprOracleGlobal {
  * @dev Oracle contract for providing APR data for Term Strategy
  * @author Term Finance
  */
-contract TermStrategyAprOracle is
-    AprOracleBase
-{
-
+contract TermStrategyAprOracle is AprOracleBase {
     // =============================================================
     //                          ERRORS
     // =============================================================
@@ -53,24 +47,34 @@ contract TermStrategyAprOracle is
     //                          EVENTS
     // =============================================================
 
-    event ExternalAprOracleSet(address indexed underlyingVault, address indexed aprOracle);
+    event ExternalAprOracleSet(
+        address indexed underlyingVault,
+        address indexed aprOracle
+    );
     event ExternalAprOracleRemoved(address indexed underlyingVault);
 
     // =============================================================
     //                        STATE VARIABLES
     // =============================================================
-    
+
     IAprOracleGlobal public immutable globalOracle;
     mapping(address => VaultMapping) public idleVaultRemappings;
-
 
     // =============================================================
     //                        CONSTRUCTOR
     // =============================================================
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address admin_, address globalOracle_, address[] memory underlyingVaults_, VaultMapping[] memory vaultMappings_) AprOracleBase("TermStrategyAprOracle", admin_) {
-        require(underlyingVaults_.length == vaultMappings_.length, "Mismatched input lengths");
+    constructor(
+        address admin_,
+        address globalOracle_,
+        address[] memory underlyingVaults_,
+        VaultMapping[] memory vaultMappings_
+    ) AprOracleBase("TermStrategyAprOracle", admin_) {
+        require(
+            underlyingVaults_.length == vaultMappings_.length,
+            "Mismatched input lengths"
+        );
         require(globalOracle_ != address(0), "ZERO ADDRESS");
         globalOracle = IAprOracleGlobal(globalOracle_);
         for (uint256 i = 0; i < underlyingVaults_.length; i++) {
@@ -82,29 +86,37 @@ contract TermStrategyAprOracle is
     //                      VIEW FUNCTIONS
     // =============================================================
 
-   function aprAfterDebtChange(
+    function aprAfterDebtChange(
         address _strategy,
         int256 _debtChange
     ) public view override returns (uint256) {
         Strategy termStrategy = Strategy(_strategy);
-        
+
         // Get strategy state fields individually since public struct getter returns tuple
         (
             address assetVault,
-            ,  // eventEmitter
-            ,  // governorAddress
-            ,  // prevTermController
-            ,  // currTermController
+            , // eventEmitter
+            , // governorAddress
+            , // prevTermController
+            , // currTermController
             ITermDiscountRateAdapter discountRateAdapter,
-            ,  // timeToMaturityThreshold
-            ,  // requiredReserveRatio
-            ,  // discountRateMarkup
-               // repoTokenConcentrationLimit
-        ) = termStrategy.strategyState();
-        
-        uint256 totalWeightedRepoTokenApr = _calculateTotalWeightedRepoTokenApr(termStrategy, discountRateAdapter);
-        
-        uint256 liquidBalanceWeightedApr = _calculateTotalWeightedLiquidBalanceApr(termStrategy, assetVault, _debtChange);
+            , // timeToMaturityThreshold
+            , // requiredReserveRatio
+            , // discountRateMarkup
+
+        ) = // repoTokenConcentrationLimit
+            termStrategy.strategyState();
+
+        uint256 totalWeightedRepoTokenApr = _calculateTotalWeightedRepoTokenApr(
+            termStrategy,
+            discountRateAdapter
+        );
+
+        uint256 liquidBalanceWeightedApr = _calculateTotalWeightedLiquidBalanceApr(
+                termStrategy,
+                assetVault,
+                _debtChange
+            );
 
         uint256 totalAssetValue = termStrategy.totalAssetValue();
 
@@ -114,12 +126,17 @@ contract TermStrategyAprOracle is
             adjustedAssetValue = totalAssetValue + uint256(_debtChange);
         } else {
             uint256 absDebtChange = uint256(-_debtChange);
-            require(totalAssetValue >= absDebtChange, "Asset value insufficient for debt change");
+            require(
+                totalAssetValue >= absDebtChange,
+                "Asset value insufficient for debt change"
+            );
             adjustedAssetValue = totalAssetValue - absDebtChange;
         }
 
         require(adjustedAssetValue > 0, "Adjusted asset value is zero");
-        return (totalWeightedRepoTokenApr + liquidBalanceWeightedApr) / adjustedAssetValue;
+        return
+            (totalWeightedRepoTokenApr + liquidBalanceWeightedApr) /
+            adjustedAssetValue;
     }
 
     // =============================================================
@@ -143,7 +160,9 @@ contract TermStrategyAprOracle is
 
         for (uint256 i = 0; i < repoTokens.length; i++) {
             // Get present value (current holding value)
-            repoTokenTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(repoTokens[i]);
+            repoTokenTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(
+                repoTokens[i]
+            );
 
             // Skip if no holdings
             if (repoTokenTokenHoldingValue == 0) continue;
@@ -175,25 +194,35 @@ contract TermStrategyAprOracle is
             adjustedLiquidBalance = liquidBalance + uint256(_debtChange);
         } else {
             uint256 absDebtChange = uint256(-_debtChange);
-            require(liquidBalance >= absDebtChange, "Liquid balance insufficient for debt change");
+            require(
+                liquidBalance >= absDebtChange,
+                "Liquid balance insufficient for debt change"
+            );
             adjustedLiquidBalance = liquidBalance - absDebtChange;
         }
 
         // Check if there is an external APR oracle for the underlying asset
-        VaultMapping memory vaultMapping = idleVaultRemappings[strategyUnderlyingVault];
+        VaultMapping memory vaultMapping = idleVaultRemappings[
+            strategyUnderlyingVault
+        ];
         if (vaultMapping.vaultAddress == address(0)) {
             revert UnknownUnderlyingVaultAprOracle();
         }
         uint256 externalApr;
         if (vaultMapping.vaultType == VaultType.MULTISTRAT) {
-            externalApr = globalOracle.getWeightedAverageApr(strategyUnderlyingVault, _debtChange);
+            externalApr = globalOracle.getWeightedAverageApr(
+                strategyUnderlyingVault,
+                _debtChange
+            );
         } else {
-            externalApr = globalOracle.getStrategyApr(strategyUnderlyingVault, _debtChange);
+            externalApr = globalOracle.getStrategyApr(
+                strategyUnderlyingVault,
+                _debtChange
+            );
         }
-      
+
         liquidBalanceWeightedApr = (externalApr * adjustedLiquidBalance);
     }
-
 
     // =============================================================
     //                      ADMIN FUNCTIONS
@@ -208,11 +237,14 @@ contract TermStrategyAprOracle is
         address[] calldata _underlyingVaults,
         VaultMapping[] calldata _vaultMappings
     ) external onlyGovernance {
-        require(_underlyingVaults.length == _vaultMappings.length, "Mismatched input lengths");
-        
+        require(
+            _underlyingVaults.length == _vaultMappings.length,
+            "Mismatched input lengths"
+        );
+
         for (uint256 i = 0; i < _underlyingVaults.length; i++) {
             if (_underlyingVaults[i] == address(0)) revert ZeroAddress();
-            
+
             if (_vaultMappings[i].vaultAddress == address(0)) {
                 // Remove mapping
                 delete idleVaultRemappings[_underlyingVaults[i]];
@@ -220,7 +252,10 @@ contract TermStrategyAprOracle is
             } else {
                 // Set mapping
                 idleVaultRemappings[_underlyingVaults[i]] = _vaultMappings[i];
-                emit ExternalAprOracleSet(_underlyingVaults[i], _vaultMappings[i].vaultAddress);
+                emit ExternalAprOracleSet(
+                    _underlyingVaults[i],
+                    _vaultMappings[i].vaultAddress
+                );
             }
         }
     }

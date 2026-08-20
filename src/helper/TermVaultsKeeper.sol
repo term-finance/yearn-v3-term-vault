@@ -150,28 +150,31 @@ contract TermVaultsKeeper is
     ) external onlyRole(KEEPER_ROLE) returns (uint256 debtMoved) {
         IVault vaultContract = IVault(vault);
         IStrategy strategyContract = IStrategy(strategyToClose);
-        
+
         // Get current debt of strategy to close
-        StrategyParams memory strategyToCloseParams = vaultContract.strategies(strategyToClose);
+        StrategyParams memory strategyToCloseParams = vaultContract.strategies(
+            strategyToClose
+        );
         uint256 currentDebtToClose = strategyToCloseParams.current_debt;
         require(currentDebtToClose > 0, "No debt to move");
 
         // Get current debt of strategy to increase
-        StrategyParams memory strategyToIncreaseParams = vaultContract.strategies(strategyToIncrease);
+        StrategyParams memory strategyToIncreaseParams = vaultContract
+            .strategies(strategyToIncrease);
         uint256 currentDebtToIncrease = strategyToIncreaseParams.current_debt;
-        
+
         // Step 1: Call auctionClosed on strategy to close
         strategyContract.auctionClosed();
-        
+
         // Step 2: Set debt to 0 for strategy to close
         vaultContract.update_debt(strategyToClose, 0, 10000);
-        
+
         // Step 3: Increase debt for other strategy
         uint256 newTargetDebt = currentDebtToIncrease + currentDebtToClose;
         vaultContract.update_debt(strategyToIncrease, newTargetDebt, 10000);
-        
+
         return currentDebtToClose;
-    } 
+    }
 
     function _withdraw(
         address vault,
@@ -203,8 +206,8 @@ contract TermVaultsKeeper is
         StrategyParams memory strategyParams = vaultContract.strategies(
             depositStrategies[depositStrategies.length - 1]
         );
-        uint256 newDebtTarget = strategyParams.current_debt +
-            vaultContract.totalIdle();
+        uint256 newDebtTarget =
+            strategyParams.current_debt + vaultContract.totalIdle();
         vaultContract.update_debt(
             depositStrategies[depositStrategies.length - 1],
             newDebtTarget,

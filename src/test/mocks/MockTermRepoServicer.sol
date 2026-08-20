@@ -32,9 +32,9 @@ contract MockTermRepoServicer is ITermRepoServicer {
         uint256 amountToRedeem
     ) external {
         if (redemptionFailure) revert("redemption failured");
-        uint256 amountToRedeemInAssetPrecision = (amountToRedeem *
-            (10 ** IMockERC20(purchaseToken).decimals())) /
-            (10 ** IMockERC20(address(repoToken)).decimals());
+        uint256 amountToRedeemInAssetPrecision =
+            (amountToRedeem * (10 ** IMockERC20(purchaseToken).decimals())) /
+                (10 ** IMockERC20(address(repoToken)).decimals());
         IMockERC20(purchaseToken).mint(
             redeemer,
             amountToRedeemInAssetPrecision

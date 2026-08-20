@@ -2,9 +2,7 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
-import {
-    MockTermAuctionOfferLocker
-} from "./mocks/MockTermAuctionOfferLocker.sol";
+import {MockTermAuctionOfferLocker} from "./mocks/MockTermAuctionOfferLocker.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -557,18 +555,19 @@ contract TestUSDCIntegration is Setup {
             .config();
 
         uint256 purchaseTokenPrecision = 10 ** ERC20(purchaseToken).decimals();
-        uint256 repoTokenPrecision = 10 **
-            ERC20(address(termRepoToken)).decimals();
+        uint256 repoTokenPrecision =
+            10 ** ERC20(address(termRepoToken)).decimals();
 
-        uint256 timeLeftToMaturityDayFraction = ((redemptionTimestamp -
-            block.timestamp) * purchaseTokenPrecision) /
-            THREESIXTY_DAYCOUNT_SECONDS;
+        uint256 timeLeftToMaturityDayFraction =
+            ((redemptionTimestamp - block.timestamp) * purchaseTokenPrecision) /
+                THREESIXTY_DAYCOUNT_SECONDS;
 
         // purchaseTokenAmount * (1 + r * days / 360) = repoTokenAmountInBaseAssetPrecision
-        uint256 repoTokenAmountInBaseAssetPrecision = (purchaseTokenAmount *
-            (purchaseTokenPrecision +
-                ((discountRate * timeLeftToMaturityDayFraction) /
-                    RATE_PRECISION))) / purchaseTokenPrecision;
+        uint256 repoTokenAmountInBaseAssetPrecision =
+            (purchaseTokenAmount *
+                (purchaseTokenPrecision +
+                    ((discountRate * timeLeftToMaturityDayFraction) /
+                        RATE_PRECISION))) / purchaseTokenPrecision;
 
         return
             (repoTokenAmountInBaseAssetPrecision * repoTokenPrecision) /

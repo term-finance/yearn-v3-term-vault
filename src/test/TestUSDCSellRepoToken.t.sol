@@ -3,9 +3,7 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {
-    ITokenizedStrategy
-} from "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
+import {ITokenizedStrategy} from "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermController} from "./mocks/MockTermController.sol";
 import {MockTermAuction} from "./mocks/MockTermAuction.sol";
@@ -133,14 +131,15 @@ contract TestUSDCSellRepoToken is Setup {
             .config();
 
         // TODO: validate this math (weighted time to maturity)
-        uint256 repoTokenBalanceInBaseAssetPrecision = (ITermRepoToken(
-            repoToken1Week
-        ).redemptionValue() *
-            repoTokenSellAmount *
-            1e6) / (1e18 * 1e18);
-        uint256 cumulativeWeightedTimeToMaturity = (redemptionTimestamp -
-            block.timestamp) * repoTokenBalanceInBaseAssetPrecision;
-        uint256 expectedWeightedTimeToMaturity = cumulativeWeightedTimeToMaturity /
+        uint256 repoTokenBalanceInBaseAssetPrecision =
+            (ITermRepoToken(repoToken1Week).redemptionValue() *
+                repoTokenSellAmount *
+                1e6) / (1e18 * 1e18);
+        uint256 cumulativeWeightedTimeToMaturity =
+            (redemptionTimestamp - block.timestamp) *
+                repoTokenBalanceInBaseAssetPrecision;
+        uint256 expectedWeightedTimeToMaturity =
+            cumulativeWeightedTimeToMaturity /
                 (repoTokenBalanceInBaseAssetPrecision +
                     termStrategy.totalLiquidBalance());
 

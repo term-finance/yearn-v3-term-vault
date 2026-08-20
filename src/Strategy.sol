@@ -13,12 +13,8 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
-import {
-    ITermAuctionOfferLocker
-} from "./interfaces/term/ITermAuctionOfferLocker.sol";
-import {
-    ITermDiscountRateAdapter
-} from "./interfaces/term/ITermDiscountRateAdapter.sol";
+import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {
@@ -270,8 +266,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             strategyState.repoTokenConcentrationLimit,
             newRepoTokenConcentrationLimit
         );
-        strategyState
-            .repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
+        strategyState.repoTokenConcentrationLimit =
+            newRepoTokenConcentrationLimit;
     }
 
     /**
@@ -509,8 +505,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             simulatedLiquidityRatio = 0;
         } else {
             simulatedLiquidityRatio =
-                ((liquidBalance - proceeds) * 10 ** 18) /
-                assetValue;
+                ((liquidBalance - proceeds) * 10 ** 18) / assetValue;
         }
     }
 
@@ -569,7 +564,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 tokenTermController = address(strategyState.currTermController);
             } else if (
                 strategyState.prevTermController !=
-                ITermController(address(0)) &&
+                    ITermController(address(0)) &&
                 strategyState.prevTermController.isTermDeployed(repoToken)
             ) {
                 tokenTermController = address(strategyState.prevTermController);
@@ -669,19 +664,20 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 liquidBalanceToRemove
     ) private view returns (uint256) {
         // Retrieve the current value of the repoToken held by the strategy and add the new repoToken amount
-        uint256 repoTokenValue = getRepoTokenHoldingValue(repoToken) +
-            repoTokenAmountInBaseAssetPrecision;
+        uint256 repoTokenValue =
+            getRepoTokenHoldingValue(repoToken) +
+                repoTokenAmountInBaseAssetPrecision;
 
         // Retrieve the total asset value of the strategy and adjust it for the new repoToken amount and liquid balance to be removed
-        uint256 adjustedTotalAssetValue = assetValue +
-            repoTokenAmountInBaseAssetPrecision -
-            liquidBalanceToRemove;
+        uint256 adjustedTotalAssetValue =
+            assetValue +
+                repoTokenAmountInBaseAssetPrecision -
+                liquidBalanceToRemove;
 
         // Normalize the repoToken value and total asset value to 1e18 precision
         repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
         adjustedTotalAssetValue =
-            (adjustedTotalAssetValue * 1e18) /
-            PURCHASE_TOKEN_PRECISION;
+            (adjustedTotalAssetValue * 1e18) / PURCHASE_TOKEN_PRECISION;
 
         // Calculate the repoToken concentration
         return
@@ -757,7 +753,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             );
 
         // Accumulate repoToken data
-        cumulativeWeightedTimeToMaturity += cumulativeRepoTokenWeightedTimeToMaturity;
+        cumulativeWeightedTimeToMaturity +=
+            cumulativeRepoTokenWeightedTimeToMaturity;
         cumulativeAmount += cumulativeRepoTokenAmount;
 
         (
@@ -773,7 +770,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             );
 
         // Accumulate offer data
-        cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
+        cumulativeWeightedTimeToMaturity +=
+            cumulativeOfferWeightedTimeToMaturity;
         cumulativeAmount += cumulativeOfferAmount;
 
         if (
@@ -1229,8 +1227,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        uint256 newLiquidReserveRatio = ((liquidBalance - proceeds) * 1e18) /
-            totalAssetValue; // NOTE: we require totalAssetValue > 0 above
+        uint256 newLiquidReserveRatio =
+            ((liquidBalance - proceeds) * 1e18) / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
         if (newLiquidReserveRatio < strategyState.requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
@@ -1410,7 +1408,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     ) public view override returns (uint256) {
         uint256 converted = _assetBalance();
         uint256 executable = YEARN_VAULT.maxWithdraw(address(this));
-        return IERC20(asset).balanceOf(address(this)) + Math.min(converted, executable);
+        return
+            IERC20(asset).balanceOf(address(this)) +
+            Math.min(converted, executable);
     }
 
     /**

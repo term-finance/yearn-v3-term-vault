@@ -24,20 +24,25 @@ contract TestUSDCBuyRepoToken is Setup {
         address governor_,
         address termController_
     ) internal override returns (IStrategyInterface) {
-        TwoWayStrategy.StrategyParams memory params = TwoWayStrategy.StrategyParams(
-            asset_,
-            mockYearnVault_,
-            discountRateAdapter_,
-            termVaultEventEmitter_,
-            governor_,
-            termController_,
-            0.1e18,
-            45 days,
-            0.2e18,
-            0.005e18,
-            0.005e18
+        TwoWayStrategy.StrategyParams memory params = TwoWayStrategy
+            .StrategyParams(
+                asset_,
+                mockYearnVault_,
+                discountRateAdapter_,
+                termVaultEventEmitter_,
+                governor_,
+                termController_,
+                0.1e18,
+                45 days,
+                0.2e18,
+                0.005e18,
+                0.005e18
+            );
+        TwoWayStrategy strat = new TwoWayStrategy(
+            "Tokenized Strategy",
+            "tS",
+            params
         );
-        TwoWayStrategy strat = new TwoWayStrategy("Tokenized Strategy", "tS", params);
         return IStrategyInterface(address(strat));
     }
 
@@ -99,7 +104,10 @@ contract TestUSDCBuyRepoToken is Setup {
         assertEq(repoToken1Week.balanceOf(buyer), repoTokenAmount);
         assertEq(repoToken1Week.balanceOf(address(strategy)), 0);
         assertEq(mockUSDC.balanceOf(buyer), 0);
-        assertEq(termStrategy.getRepoTokenHoldingValue(address(repoToken1Week)), 0);
+        assertEq(
+            termStrategy.getRepoTokenHoldingValue(address(repoToken1Week)),
+            0
+        );
     }
 
     function testBuyRepoTokenSubtractsBuyMarkup() public {
@@ -263,10 +271,7 @@ contract TestUSDCBuyRepoToken is Setup {
 
         // Redemption sweep cannot clear it either: the inventory is stuck
         termStrategy.auctionClosed();
-        assertEq(
-            repoToken1Week.balanceOf(address(strategy)),
-            repoTokenAmount
-        );
+        assertEq(repoToken1Week.balanceOf(address(strategy)), repoTokenAmount);
     }
 
     /// @dev Governance raising the required min collateral ratio above the
@@ -384,19 +389,8 @@ contract TestUSDCBuyRepoToken is Setup {
 
         vm.prank(governor);
         termStrategy.setDiscountRateBuyMarkup(12345);
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 discountRateBuyMarkup,
-
-        ) = termStrategy.strategyState();
+        (, , , , , , , , , uint256 discountRateBuyMarkup, ) = termStrategy
+            .strategyState();
         assertEq(discountRateBuyMarkup, 12345);
     }
 }
