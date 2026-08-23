@@ -57,6 +57,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * @param _discountRateAdapter The address of the discount rate adapter
      * @param _eventEmitter The address of the event emitter
      * @param _governorAddress The address of the governor
+     * @param _guardianAddress The address holding DEFAULT_ADMIN_ROLE, able to reassign
+     * GOVERNOR_ROLE if the governor is lost or compromised
      * @param _termController The address of the term controller
      * @param _repoTokenConcentrationLimit The concentration limit for repoTokens
      * @param _timeToMaturityThreshold The time to maturity threshold
@@ -69,6 +71,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         address _discountRateAdapter;
         address _eventEmitter;
         address _governorAddress;
+        address _guardianAddress;
         address _termController;
         uint256 _repoTokenConcentrationLimit;
         uint256 _timeToMaturityThreshold;
@@ -100,6 +103,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     error AuctionNotOpen();
     error ZeroPurchaseTokenAmount();
     error OfferNotFound();
+    error ZeroGuardianAddress();
 
     bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
@@ -1293,6 +1297,14 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         });
 
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
+
+        // The guardian holds DEFAULT_ADMIN_ROLE, which administers GOVERNOR_ROLE. Without a
+        // bearer, a governor that is lost or compromised can never be replaced: acceptGovernor
+        // is the only path to GOVERNOR_ROLE and it is callable only by the sitting governor's
+        // nominee. The guardian must be independent of the governance stack that appoints the
+        // governor, or it fails in the same event.
+        if (_params._guardianAddress == address(0)) revert ZeroGuardianAddress();
+        _grantRole(DEFAULT_ADMIN_ROLE, _params._guardianAddress);
     }
 
     /*//////////////////////////////////////////////////////////////

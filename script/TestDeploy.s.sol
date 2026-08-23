@@ -173,6 +173,7 @@ contract TestDeploy is Script {
             discountRateAdapterAddress,
             address(eventEmitter),
             deployer,
+            vm.envAddress("GUARDIAN_ADDRESS"),
             termController,
             repoTokenConcentrationLimit,
             timeToMaturityThreshold,
