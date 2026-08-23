@@ -167,6 +167,7 @@ contract Setup is ExtendedTest, IEvents {
             discountRateAdapter,
             termVaultEventEmitter,
             governor,
+            adminWallet,
             termController,
             0.1e18,
             45 days,
