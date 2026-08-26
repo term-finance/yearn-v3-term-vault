@@ -14,6 +14,8 @@ jobs:
         with:
           version: nightly
       - run: forge install
+      # The Kontrol proofs are excluded here on purpose: they are symbolic and
+      # cannot run under `forge test`. They are proved by .github/workflows/kontrol.yaml.
       - name: Run non-Kontrol tests
         run: |
           forge test --no-match-path "src/test/kontrol/*" -vvv

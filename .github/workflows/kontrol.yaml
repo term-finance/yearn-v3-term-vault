@@ -1,0 +1,85 @@
+name: Kontrol
+
+# Unbounded proofs over the repo-token and auction list libraries.
+#
+# The suite, its configuration and its 22KB lemma file have been in the tree
+# since May and have never run: ci.yaml executes
+# `forge test --no-match-path "src/test/kontrol/*"`, so the only automation
+# touching these proofs is the flag that skips them.
+#
+# They are slow (K's reachability engine, not a per-assertion SMT query), so
+# this is deliberately NOT a pull-request gate. It runs nightly and on demand.
+# Making it block PRs is what caused the exclusion in the first place.
+
+on:
+  schedule:
+    # 04:00 UTC, off the working day.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      config-profile:
+        description: "kontrol.toml prove profile to run"
+        type: choice
+        options: [tests, setup]
+        default: tests
+  push:
+    # Changes to the proofs themselves, their lemmas, or the code they cover
+    # should be checked before they are a night old.
+    paths:
+      - "src/RepoTokenList.sol"
+      - "src/TermAuctionList.sol"
+      - "src/test/kontrol/**"
+      - "kontrol.toml"
+      - ".github/workflows/kontrol.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kontrol-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  proofs:
+    runs-on: ubuntu-latest
+    # Proofs run for hours. The default 360-minute ceiling would cancel a run
+    # that was still making progress and report it as a failure.
+    timeout-minutes: 360
+    container:
+      # Pinned, not floating: a Kontrol upgrade can change what the lemmas
+      # discharge, and that should be a reviewed commit rather than a surprise
+      # in a nightly run.
+      image: runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Show Kontrol version
+        run: kontrol version
+
+      # `kontrol build` reads [build.default] from kontrol.toml, which requires
+      # src/test/kontrol/term-lemmas.k and imports it into the test module.
+      - name: Build
+        run: kontrol build --config-profile default
+
+      # The setUp profile proves the fixtures the test profile assumes. It is a
+      # prerequisite, not an optional extra: proving the tests against an
+      # unproven setUp would assume the state the proofs are about.
+      - name: Prove setUp
+        run: kontrol prove --config-profile setup --workers 4
+
+      - name: Prove tests
+        run: kontrol prove --config-profile ${{ inputs.config-profile || 'tests' }} --workers 4
+
+      # The proof artifacts are what a failure is diagnosed from; without them a
+      # red run says only "something did not prove".
+      - name: Upload proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kontrol-proofs
+          path: out/proofs/
+          retention-days: 14
+          if-no-files-found: warn
