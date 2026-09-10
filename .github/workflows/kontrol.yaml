@@ -52,15 +52,15 @@ jobs:
       image: runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
       options: --user root
     env:
-      # Kontrol is a pip *user-site* install for the image's own `user`:
-      # /home/user/.local/lib/python3.10/site-packages/kontrol. The job runs as
-      # root (so checkout can write the mounted workspace) and GitHub sets
-      # HOME=/github/home, so root's Python looks for the user site under
-      # /github/home/.local instead -- the launcher is found on PATH but
-      # `import kontrol` fails with ModuleNotFoundError. Point Python at the
-      # real install. Reproduced and fixed locally with `podman run --user root
-      # -e HOME=/github/home`.
-      PYTHONUSERBASE: /home/user/.local
+      # The image keeps everything Kontrol needs under its own user's home: the
+      # Python package (a pip user-site install, /home/user/.local) AND the
+      # pre-built K definitions (/home/user/.cache/kdist-*/kontrol/base).
+      # GitHub sets HOME=/github/home on container jobs, which hides both --
+      # the first surfaced as `ModuleNotFoundError: kontrol`, the second as
+      # `Target undefined or not built: kontrol.base`. Restoring HOME fixes the
+      # cause rather than chasing each path; it was reproduced and confirmed
+      # locally with `podman run --user root -e HOME=/github/home`.
+      HOME: /home/user
     steps:
       - uses: actions/checkout@v4
         with:
