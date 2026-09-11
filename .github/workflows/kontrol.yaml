@@ -23,13 +23,19 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
   push:
-    # Changes to the proofs themselves, their lemmas, the code they cover, or
-    # the compiler settings that code is built with should be checked before
-    # they are a night old.
+    # Changes to the proofs themselves, their lemmas, the code they cover
+    # (the two libraries, the RepoTokenUtils library both call, and the
+    # interfaces they call through), or the compiler settings that code is
+    # built with should be checked before they are a night old.
+    # Counterexamples.t.sol is an ordinary forge test that ci.yaml runs, not a
+    # proof, so editing it should not start this workflow.
     paths:
       - "src/RepoTokenList.sol"
       - "src/TermAuctionList.sol"
+      - "src/RepoTokenUtils.sol"
+      - "src/interfaces/term/**"
       - "src/test/kontrol/**"
+      - "!src/test/kontrol/Counterexamples.t.sol"
       - "kontrol.toml"
       - "foundry.toml"
       - ".github/workflows/kontrol.yaml"
