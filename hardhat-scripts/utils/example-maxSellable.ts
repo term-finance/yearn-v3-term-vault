@@ -39,11 +39,6 @@ async function main() {
   if (result.maxAmount.gt(0)) {
     console.log(`\n✅ Maximum sellable amount: ${result.maxAmount.toString()}`);
     console.log(`Limited by: ${result.limitingConstraint}`);
-    if (result.minAmount) {
-      console.log(
-        `Minimum sellable amount (strategy is above its time-to-maturity threshold): ${result.minAmount.toString()}`
-      );
-    }
     if (result.constraints) {
       console.log("\nStrategy state after selling the maximum amount:");
       printSaleEvaluation(result.constraints);

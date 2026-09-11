@@ -66,13 +66,15 @@ export interface MaxSellableInputData {
    * - simulatedRepoTokenConcentrationRatio: always 0 for address(0)
    * - simulatedLiquidityRatio: current liquidity ratio (scaled by RATE_PRECISION)
    *
-   * simulatedWeightedMaturity is floor(cumulativeWeightedTime / (cumulativeAmount + liquidBalance)).
-   * The strategy does not expose cumulativeAmount (the face value of held repoTokens and pending
-   * offers), so the time-to-maturity constraint estimates it conservatively:
-   * cumulativeAmount + liquidBalance as totalAssetValue, which is never above it because holdings
-   * count at present value rather than face value, and cumulativeWeightedTime as
-   * (simulatedWeightedMaturity + 1) * totalAssetValue, which covers the flooring. While the
-   * strategy is below its threshold, an amount that passes this estimate also passes on-chain.
+   * simulatedWeightedMaturity is floor(W / D), where W is the cumulative weighted time and D is
+   * cumulativeAmount + liquidBalance. The strategy exposes neither W nor cumulativeAmount (the
+   * face value of held repoTokens and pending offers), so the time-to-maturity check substitutes
+   * totalAssetValue for D and (simulatedWeightedMaturity + 1) * totalAssetValue for W. Neither
+   * substitute bounds its counterpart on its own, but W < (simulatedWeightedMaturity + 1) * D and
+   * D >= totalAssetValue (holdings count at present value, not face value), so while
+   * simulatedWeightedMaturity < threshold, a sale that passes the substituted check also passes
+   * on-chain. At or above the threshold no sale can be vouched for, so the check fails for every
+   * amount.
    */
   simulationData: {
     /** @dev Units: seconds - Current weighted maturity from simulateTransaction */
@@ -96,6 +98,13 @@ export interface MaxSellableInputData {
   // Validation flags
   /** @dev Units: boolean - true if repoToken is blacklisted */
   isBlacklisted: boolean;
+
+  /**
+   * @dev Units: boolean - true if redemptionTimestamp is before the snapshot block's timestamp,
+   *      which sellRepoToken rejects. A repoToken at exactly its redemption timestamp is still
+   *      accepted, at face value.
+   */
+  isMatured: boolean;
 }
 
 /** The checks sellRepoToken applies to a sale, in the order it applies them. */
@@ -123,8 +132,10 @@ export interface SaleEvaluation {
   /** @dev Units: base asset precision */
   totalAssetValueBefore: BigNumber;
   /**
-   * @dev Units: seconds - conservative estimate, rounded up; see MaxSellableInputData.simulationData.
-   *      strategy.simulateTransaction(repoToken, repoTokenAmount) returns the exact on-chain value.
+   * @dev Units: seconds - estimate, rounded up; see MaxSellableInputData.simulationData. It is not
+   *      a bound on the on-chain value, but while the strategy is below its threshold, a value at
+   *      or below the threshold means sellRepoToken's check passes.
+   *      strategy.simulateTransaction(repoToken, repoTokenAmount) returns the exact value.
    */
   weightedTimeToMaturityAfter: BigNumber;
   /** @dev Units: seconds */
@@ -150,13 +161,6 @@ export interface SaleEvaluation {
 export interface MaxSellableResult {
   /** @dev Units: repoToken precision */
   maxAmount: BigNumber;
-  /**
-   * @dev Units: repoToken precision - set only when the strategy is at or above its
-   *      time-to-maturity threshold and selling this repoToken lowers its weighted maturity, which
-   *      needs threshold - timeToMaturity > 360 days / rate: smaller sales leave it above the
-   *      threshold and revert.
-   */
-  minAmount?: BigNumber;
   reason?: string;
   limitingConstraint?:
     | SellRepoTokenCheck
@@ -249,12 +253,11 @@ export function evaluateRepoTokenSale(
   // Signed, so a sale that fails the liquidBalance check still yields comparable ratios below.
   const liquidBalanceAfter = liquidBalance.sub(proceeds);
 
-  // Strategy._calculateWeightedMaturity with the conservative estimate described in
+  // Strategy._calculateWeightedMaturity with the substitutes described in
   // MaxSellableInputData.simulationData. Rounded up, so comparing it with the threshold is the
   // unrounded comparison the on-chain guarantee relies on.
-  const cumulativeWeightedTime = inputData.simulationData.simulatedWeightedMaturity
-    .add(1)
-    .mul(totalAssetValue);
+  const weightedMaturity = inputData.simulationData.simulatedWeightedMaturity;
+  const cumulativeWeightedTime = weightedMaturity.add(1).mul(totalAssetValue);
   const weightedDenominator = totalAssetValue.add(amountInBase).sub(proceeds);
   const weightedTimeToMaturityAfter = weightedDenominator.lte(0)
     ? ZERO
@@ -286,7 +289,10 @@ export function evaluateRepoTokenSale(
   if (liquidBalance.lt(proceeds)) {
     failedChecks.push("liquidBalance");
   }
-  if (weightedTimeToMaturityAfter.gt(inputData.timeToMaturityThreshold)) {
+  if (
+    weightedMaturity.gte(inputData.timeToMaturityThreshold) ||
+    weightedTimeToMaturityAfter.gt(inputData.timeToMaturityThreshold)
+  ) {
     failedChecks.push("timeToMaturity");
   }
   if (liquidReserveRatioAfter.lt(inputData.requiredReserveRatio)) {
@@ -358,7 +364,7 @@ export function calculateMaxSellableRepoTokenAmount(
     };
   }
 
-  if (inputData.repoTokenTimeToMaturity.isZero()) {
+  if (inputData.isMatured) {
     return {
       maxAmount: ZERO,
       reason: "RepoToken has already matured",
@@ -398,12 +404,12 @@ export function calculateMaxSellableRepoTokenAmount(
 
   // Flooring in the contract can only lower proceeds, so an amount within this bound always
   // keeps proceeds <= maxProceeds.
-  const boundProceeds = (maxProceeds: BigNumber): AmountBounds =>
-    solveAmountBounds(proceedsGrowth, maxProceeds.mul(scale));
+  const boundProceeds = (maxProceeds: BigNumber): BigNumber | undefined =>
+    solveAmountBounds(proceedsGrowth, maxProceeds.mul(scale)).upper;
 
   // CONSTRAINT 1: Liquid Balance
   // proceeds <= liquidBalance
-  const liquidBalanceBounds = boundProceeds(liquidBalance);
+  const liquidBalanceBound = boundProceeds(liquidBalance);
 
   // CONSTRAINT 2: Time to Maturity
   // (cumulativeWeightedTime + timeToMaturity * amountInBase)
@@ -413,8 +419,10 @@ export function calculateMaxSellableRepoTokenAmount(
   //   amount * (timeToMaturity * amountInBase' - threshold * (amountInBase' - proceeds'))
   //     <= (threshold - weightedMaturity - 1) * totalAssetValue
   // where primes are per unit of amount. The left-hand factor is negative only when the discount
-  // outweighs the repoToken's time to maturity (threshold - timeToMaturity > 360 days / rate);
-  // the solution is then a minimum amount.
+  // outweighs the repoToken's time to maturity (threshold - timeToMaturity > 360 days / rate).
+  // A negative factor with a negative right-hand side gives a minimum amount: the strategy is at
+  // or above its threshold and only a large enough sale would bring it back under. The estimate
+  // cannot vouch for any sale from that state, so it is treated as allowing none.
   const threshold = inputData.timeToMaturityThreshold;
   const maturityBounds = solveAmountBounds(
     inputData.repoTokenTimeToMaturity
@@ -425,6 +433,7 @@ export function calculateMaxSellableRepoTokenAmount(
       .mul(totalAssetValue)
       .mul(scale)
   );
+  const maturityBound = maturityBounds.lower !== undefined ? ZERO : maturityBounds.upper;
 
   // CONSTRAINT 3: Reserve Ratio
   // (liquidBalance - proceeds) * 1e18 / totalAssetValue >= requiredReserveRatio, i.e.
@@ -434,7 +443,7 @@ export function calculateMaxSellableRepoTokenAmount(
     totalAssetValue.mul(inputData.requiredReserveRatio),
     RATE_PRECISION
   );
-  const reserveRatioBounds = boundProceeds(
+  const reserveRatioBound = boundProceeds(
     requiredReserve.lt(liquidBalance) ? liquidBalance.sub(requiredReserve) : ZERO
   );
 
@@ -445,32 +454,28 @@ export function calculateMaxSellableRepoTokenAmount(
   //   amount * (1e18 * amountInBase' - limit * (amountInBase' - proceeds'))
   //     <= limit * totalAssetValue - 1e18 * currentRepoTokenValue
   const limit = inputData.repoTokenConcentrationLimit;
-  const concentrationBounds = solveAmountBounds(
+  const concentrationBound = solveAmountBounds(
     RATE_PRECISION.mul(baseGrowth).sub(limit.mul(baseGrowth.sub(proceedsGrowth))),
     limit
       .mul(totalAssetValue)
       .sub(RATE_PRECISION.mul(inputData.currentRepoTokenValue ?? ZERO))
       .mul(scale)
+  ).upper;
+
+  // Zero bounds are kept: a check that allows no amount caps the result at zero. The liquid
+  // balance bound always exists, so there is at least one.
+  const upper = minOf(
+    [liquidBalanceBound, maturityBound, reserveRatioBound, concentrationBound].filter(
+      (bound): bound is BigNumber => bound !== undefined
+    )
   );
 
-  const bounds: { check: SellRepoTokenCheck; bounds: AmountBounds }[] = [
-    { check: "liquidBalance", bounds: liquidBalanceBounds },
-    { check: "timeToMaturity", bounds: maturityBounds },
-    { check: "reserveRatio", bounds: reserveRatioBounds },
-    { check: "concentration", bounds: concentrationBounds },
-  ];
-
-  // Zero bounds are kept: a check that allows no amount caps the result at zero.
-  const upperBounds = bounds.filter(({ bounds }) => bounds.upper !== undefined);
-  const upper = minOf(upperBounds.map(({ bounds }) => bounds.upper as BigNumber));
-  const minAmount = maturityBounds.lower;
-  const lower = minAmount !== undefined && minAmount.gt(ONE) ? minAmount : ONE;
-
   // The analytic bounds ignore the contract's intermediate flooring, so the smallest one can be
-  // off by a few units either way. Settle the exact boundary with the contract's math: step up
-  // from the bound while larger amounts still pass, or search down if the bound itself fails.
+  // off by a few units either way; a zero bound can even hide dust amounts whose value floors to
+  // zero. Settle the exact boundary with the contract's math: step up from the bound while larger
+  // amounts still pass, or search down if the bound itself fails. Selling nothing always passes.
   const passes = (amount: BigNumber) =>
-    evaluateRepoTokenSale(inputData, amount).failedChecks.length === 0;
+    amount.isZero() || evaluateRepoTokenSale(inputData, amount).failedChecks.length === 0;
   // Largest passing amount in [passing, failing), given that `passing` passes and `failing` fails.
   const largestPassing = (passing: BigNumber, failing: BigNumber): BigNumber => {
     while (failing.sub(passing).gt(1)) {
@@ -483,37 +488,31 @@ export function calculateMaxSellableRepoTokenAmount(
     }
     return passing;
   };
-  let maxAmount = ZERO;
-  if (upper.gte(lower)) {
-    if (passes(upper)) {
-      let step = ONE;
-      let passing = upper;
-      while (passes(passing.add(step))) {
-        passing = passing.add(step);
-        step = step.mul(2);
-      }
-      maxAmount = largestPassing(passing, passing.add(step));
-    } else if (passes(lower)) {
-      maxAmount = largestPassing(lower, upper);
+  let maxAmount: BigNumber;
+  if (passes(upper)) {
+    let step = ONE;
+    let passing = upper;
+    while (passes(passing.add(step))) {
+      passing = passing.add(step);
+      step = step.mul(2);
     }
+    maxAmount = largestPassing(passing, passing.add(step));
+  } else {
+    maxAmount = largestPassing(ZERO, upper);
   }
 
-  // The binding check is the first one that fails for one more unit (or, when nothing can be
-  // sold, for the smallest candidate), falling back to the check with the smallest bound.
-  const firstFailure = evaluateRepoTokenSale(
-    inputData,
-    maxAmount.gt(0) ? maxAmount.add(1) : lower
-  ).failedChecks[0];
-  const smallestBound = upperBounds.find(({ bounds }) => bounds.upper?.eq(upper))?.check;
-  const limitingConstraint = firstFailure ?? smallestBound;
+  // By construction one more unit fails; the first check it fails is the binding one.
+  const limitingConstraint = evaluateRepoTokenSale(inputData, maxAmount.add(1)).failedChecks[0];
+  const aboveThreshold =
+    inputData.simulationData.simulatedWeightedMaturity.gte(threshold);
 
   return {
     maxAmount,
-    minAmount,
-    reason:
-      maxAmount.isZero() && limitingConstraint
-        ? CHECK_FAILURE_REASONS[limitingConstraint]
-        : undefined,
+    reason: !maxAmount.isZero()
+      ? undefined
+      : limitingConstraint === "timeToMaturity" && aboveThreshold
+        ? "Strategy is already at or above its time-to-maturity threshold"
+        : CHECK_FAILURE_REASONS[limitingConstraint],
     limitingConstraint,
     constraints: evaluateRepoTokenSale(inputData, maxAmount),
   };

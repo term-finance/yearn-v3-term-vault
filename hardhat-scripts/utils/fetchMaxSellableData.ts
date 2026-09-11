@@ -76,7 +76,12 @@ export async function fetchMaxSellableData(
   provider: providers.Provider,
   options: FetchDataOptions = {}
 ): Promise<MaxSellableInputData> {
-  const block = await provider.getBlock(options.blockTag ?? "latest");
+  const blockTag = options.blockTag ?? "latest";
+  // ethers v5 resolves to null for a block the provider does not have, e.g. above the chain head
+  const block: providers.Block | null = await provider.getBlock(blockTag);
+  if (!block) {
+    throw new Error(`Block not found for blockTag ${String(blockTag)}`);
+  }
   const overrides = { blockTag: block.number };
 
   const strategy = new Contract(strategyAddress, STRATEGY_ABI, provider);
@@ -182,6 +187,8 @@ export async function fetchMaxSellableData(
 
     // Validation flags
     isBlacklisted,
+    // RepoTokenList.validateRepoToken rejects only redemptionTimestamp < block.timestamp
+    isMatured: redemptionTimestamp.lt(blockTimestamp),
   };
 }
 
