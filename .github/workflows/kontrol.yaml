@@ -28,7 +28,9 @@ on:
     # interfaces they call through), or the compiler settings that code is
     # built with should be checked before they are a night old.
     # Counterexamples.t.sol is an ordinary forge test that ci.yaml runs, not a
-    # proof, so editing it should not start this workflow.
+    # proof, so editing it should not start this workflow. The three submodules
+    # are the ones the proofs and the libraries import; bumping one changes
+    # the code being proved.
     paths:
       - "src/RepoTokenList.sol"
       - "src/TermAuctionList.sol"
@@ -36,6 +38,9 @@ on:
       - "src/interfaces/term/**"
       - "src/test/kontrol/**"
       - "!src/test/kontrol/Counterexamples.t.sol"
+      - "lib/forge-std"
+      - "lib/kontrol-cheatcodes"
+      - "lib/openzeppelin-contracts"
       - "kontrol.toml"
       - "foundry.toml"
       - ".github/workflows/kontrol.yaml"
@@ -118,7 +123,9 @@ jobs:
           fi
 
       # Kept for three days so that re-running a single failed prove job, which
-      # does not re-run this one, can still download it.
+      # does not re-run this one, can still download it. `overwrite` because
+      # upload-artifact@v4 refuses a name that already exists in the workflow
+      # run, and a re-run of this job uploads under the same name again.
       - name: Upload build and setUp proofs
         if: always()
         uses: actions/upload-artifact@v4
@@ -128,6 +135,7 @@ jobs:
           retention-days: 3
           compression-level: 0
           if-no-files-found: warn
+          overwrite: true
 
   prove:
     needs: setup
@@ -240,7 +248,9 @@ jobs:
           fi
 
       # The proof artifacts are what a failure is diagnosed from; without them a
-      # red run says only "something did not prove".
+      # red run says only "something did not prove". `overwrite` so that
+      # re-running one proof's job can replace the artifact its first attempt
+      # left behind.
       - name: Upload proof artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -249,3 +259,4 @@ jobs:
           path: kontrol-report/
           retention-days: 14
           if-no-files-found: warn
+          overwrite: true
