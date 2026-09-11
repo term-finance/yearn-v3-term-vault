@@ -1,14 +1,19 @@
 import { ethers } from "hardhat";
-import { Strategy } from "../../typechain-types/src/Strategy";
+import "@nomiclabs/hardhat-ethers";
+import { SaleEvaluation } from "./maxSellableRepoToken";
 import { maxSellableRepoTokenAmount } from "./maxSellableRepoTokenWrapper";
 
 /**
  * Example usage of maxSellableRepoTokenAmount
+ *
+ * The helpers only read on-chain state and need no compiled artifacts, so the Solidity compile
+ * can be skipped. hardhat.config.ts reads remappings.txt, which `forge remappings > remappings.txt`
+ * creates.
+ *
+ *   STRATEGY_ADDRESS=0x... REPOTOKEN_ADDRESS=0x... \
+ *     npx hardhat run --no-compile --network mainnet hardhat-scripts/utils/example-maxSellable.ts
  */
 async function main() {
-  // Get signer
-  const [signer] = await ethers.getSigners();
-
   // Replace with your actual strategy address
   const strategyAddress = process.env.STRATEGY_ADDRESS || "";
   if (!strategyAddress) {
@@ -21,46 +26,46 @@ async function main() {
     throw new Error("REPOTOKEN_ADDRESS environment variable not set");
   }
 
-  // Get Strategy contract instance
-  const strategy = (await ethers.getContractAt(
-    "Strategy",
-    strategyAddress,
-    signer
-  )) as Strategy;
-
   console.log(`Checking maximum sellable amount for repoToken: ${repoTokenAddress}`);
   console.log(`Strategy: ${strategyAddress}`);
 
   // Calculate maximum sellable amount
   const result = await maxSellableRepoTokenAmount(
-    strategy,
+    strategyAddress,
     repoTokenAddress,
-    signer
+    ethers.provider
   );
 
   if (result.maxAmount.gt(0)) {
     console.log(`\n✅ Maximum sellable amount: ${result.maxAmount.toString()}`);
+    console.log(`Limited by: ${result.limitingConstraint}`);
     if (result.constraints) {
-      console.log("\nConstraints after selling maximum amount:");
-      console.log(`  Liquid Balance: ${result.constraints.liquidBalance.toString()}`);
-      console.log(`  Total Asset Value: ${result.constraints.totalAssetValue.toString()}`);
-      console.log(`  Proceeds: ${result.constraints.proceeds.toString()}`);
-      console.log(`  Time to Maturity: ${result.constraints.timeToMaturity.toString()}`);
-      console.log(`  Time to Maturity Threshold: ${result.constraints.timeToMaturityThreshold.toString()}`);
-      console.log(`  Liquid Reserve Ratio: ${result.constraints.liquidReserveRatio.toString()}`);
-      console.log(`  Required Reserve Ratio: ${result.constraints.requiredReserveRatio.toString()}`);
-      console.log(`  RepoToken Concentration: ${result.constraints.repoTokenConcentration.toString()}`);
-      console.log(`  RepoToken Concentration Limit: ${result.constraints.repoTokenConcentrationLimit.toString()}`);
+      console.log("\nStrategy state after selling the maximum amount:");
+      printSaleEvaluation(result.constraints);
     }
   } else {
     console.log(`\n❌ Cannot sell any amount`);
     console.log(`Reason: ${result.reason || "Unknown"}`);
     if (result.constraints) {
-      console.log("\nCurrent constraints:");
-      console.log(`  Liquid Balance: ${result.constraints.liquidBalance.toString()}`);
-      console.log(`  Total Asset Value: ${result.constraints.totalAssetValue.toString()}`);
+      console.log("\nCurrent strategy state:");
+      printSaleEvaluation(result.constraints);
     }
   }
+}
+
+function printSaleEvaluation(state: SaleEvaluation) {
+  console.log(`  Proceeds: ${state.proceeds.toString()}`);
+  console.log(`  Liquid Balance Before: ${state.liquidBalanceBefore.toString()}`);
+  console.log(`  Liquid Balance After: ${state.liquidBalanceAfter.toString()}`);
+  console.log(`  Total Asset Value Before: ${state.totalAssetValueBefore.toString()}`);
+  console.log(
+    `  Weighted Time to Maturity After (upper estimate): ${state.weightedTimeToMaturityAfter.toString()}`
+  );
+  console.log(`  Time to Maturity Threshold: ${state.timeToMaturityThreshold.toString()}`);
+  console.log(`  Liquid Reserve Ratio After: ${state.liquidReserveRatioAfter.toString()}`);
+  console.log(`  Required Reserve Ratio: ${state.requiredReserveRatio.toString()}`);
+  console.log(`  RepoToken Concentration After: ${state.repoTokenConcentrationAfter.toString()}`);
+  console.log(`  RepoToken Concentration Limit: ${state.repoTokenConcentrationLimit.toString()}`);
 }
 
 main()
@@ -69,4 +74,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-

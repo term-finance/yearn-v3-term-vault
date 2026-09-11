@@ -1,30 +1,26 @@
-import { ethers } from "ethers";
-import { Strategy } from "../../typechain-types/src/Strategy";
+import { providers } from "ethers";
 import { calculateMaxSellableRepoTokenAmount, MaxSellableResult } from "./maxSellableRepoToken";
 import { fetchMaxSellableData, FetchDataOptions } from "./fetchMaxSellableData";
 
 /**
  * Convenience wrapper that fetches data and calculates maximum sellable amount.
  * This combines fetchMaxSellableData and calculateMaxSellableRepoTokenAmount.
- * 
- * @param strategy The Strategy contract instance
+ *
+ * @param strategyAddress The address of a Strategy (Strategy.sol) deployment
  * @param repoToken The address of the repoToken to check
- * @param providerOrSigner The ethers provider or signer
- * @param options Optional configuration for subgraph usage
+ * @param provider The ethers provider to read from
+ * @param options Optional block to read at
  * @returns The maximum sellable amount and reason if no amount can be sold
  */
 export async function maxSellableRepoTokenAmount(
-  strategy: Strategy,
+  strategyAddress: string,
   repoToken: string,
-  providerOrSigner: any,
-  options?: FetchDataOptions
+  provider: providers.Provider,
+  options: FetchDataOptions = {}
 ): Promise<MaxSellableResult> {
   // Fetch all required data
-  const inputData = await fetchMaxSellableData(strategy, repoToken, providerOrSigner, options || {});
-  
+  const inputData = await fetchMaxSellableData(strategyAddress, repoToken, provider, options);
+
   // Calculate maximum sellable amount
   return calculateMaxSellableRepoTokenAmount(inputData);
 }
-
-
-

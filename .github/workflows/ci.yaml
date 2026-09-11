@@ -24,4 +24,22 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  hardhat-scripts-typecheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: nodeversion
+        run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> "$GITHUB_OUTPUT"
+      - run: corepack enable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ steps.nodeversion.outputs.version }}
+          cache: yarn
+      - run: yarn install
+      - run: yarn typecheck:scripts
   
