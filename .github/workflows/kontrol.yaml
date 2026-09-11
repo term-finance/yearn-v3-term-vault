@@ -10,18 +10,18 @@ name: Kontrol
 # They are slow (K's reachability engine, not a per-assertion SMT query), so
 # this is deliberately NOT a pull-request gate. It runs nightly and on demand.
 # Making it block PRs is what caused the exclusion in the first place.
+#
+# Layout: `setup` builds the K definition and proves both setUp functions
+# once; then every test in kontrol.toml's [prove.tests] match-test list gets
+# its own `prove` job that starts from that work. One job per proof means a
+# backend crash, a hang or an out-of-memory kill costs that proof alone, and
+# each proof has a whole runner to itself.
 
 on:
   schedule:
     # 04:00 UTC, off the working day.
     - cron: "0 4 * * *"
   workflow_dispatch:
-    inputs:
-      config-profile:
-        description: "kontrol.toml prove profile to run"
-        type: choice
-        options: [tests, setup]
-        default: tests
   push:
     # Changes to the proofs themselves, their lemmas, or the code they cover
     # should be checked before they are a night old.
@@ -40,17 +40,16 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
-  proofs:
+  setup:
     runs-on: ubuntu-latest
-    # Proofs run for hours. The default 360-minute ceiling would cancel a run
-    # that was still making progress and report it as a failure.
-    timeout-minutes: 360
+    timeout-minutes: 90
     container:
       # Pinned, not floating: a Kontrol upgrade can change what the lemmas
       # discharge, and that should be a reviewed commit rather than a surprise
-      # in a nightly run.
+      # in a nightly run. The `prove` job pins the same image; keep them equal,
+      # because it reuses the definition this job kompiles.
       image: runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
-      options: --user root
+      options: --user root --memory 13g --memory-swap 13g
     env:
       # The image keeps everything Kontrol needs under its own user's home: the
       # Python package (a pip user-site install, /home/user/.local) AND the
@@ -61,10 +60,24 @@ jobs:
       # cause rather than chasing each path; it was reproduced and confirmed
       # locally with `podman run --user root -e HOME=/github/home`.
       HOME: /home/user
+    outputs:
+      tests: ${{ steps.tests.outputs.tests }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      # kontrol.toml stays the single list of proofs: a test added there gets a
+      # job without anyone having to remember this file.
+      - name: List test proofs
+        id: tests
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json, tomli
+          with open("kontrol.toml", "rb") as f:
+              tests = tomli.load(f)["prove"]["tests"]["match-test"]
+          print("tests=" + json.dumps(tests))
+          EOF
 
       - name: Show Kontrol version
         run: kontrol version
@@ -74,32 +87,112 @@ jobs:
       - name: Build
         run: kontrol build --config-profile default
 
-      # The setUp profile proves the fixtures the test profile assumes. It is a
-      # prerequisite, not an optional extra: proving the tests against an
-      # unproven setUp would assume the state the proofs are about.
+      # Proved here, once, with the setup profile's bmc-depth. A test proof
+      # reuses its contract's setUp proof only when out/proofs holds it and
+      # out/digest marks it current; otherwise kontrol proves setUp again under
+      # the tests profile, which has no bmc-depth to bound setUp's loops.
+      #
+      # --workers 1 runs proofs in-process. With more workers kontrol uses a
+      # process pool, and a backend error raised in a worker cannot be pickled
+      # back to the parent, which kills the pool's result thread.
       - name: Prove setUp
-        run: kontrol prove --config-profile setup --workers 4
+        run: kontrol prove --config-profile setup --workers 1 --max-frontier-parallel 3
 
-      # Bounded inside the step, well under the job's 360 minutes. Reaching the
-      # job ceiling cancels whatever is running and leaves no summary; stopping
-      # here keeps ~30 minutes for the steps below (checkout, build and setUp
-      # take ~27). `timeout` signals its whole process group, which includes the
-      # kore-rpc-booster servers kontrol spawns, so none outlive the prover.
-      # Proofs cut short stay PENDING in the summary; they are not failures.
-      - name: Prove tests
+      # Everything the prove jobs need: forge artifacts, the kompiled
+      # definition, out/digest and the setUp proofs. A tarball because proof
+      # directories are named `<signature>:<version>` and upload-artifact
+      # rejects `:`.
+      - name: Package build and setUp proofs
+        if: always()
+        run: |
+          if [ -d out ]; then
+            tar -czf kontrol-setup.tar.gz out
+          fi
+
+      # Kept for three days so that re-running a single failed prove job, which
+      # does not re-run this one, can still download it.
+      - name: Upload build and setUp proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kontrol-setup
+          path: kontrol-setup.tar.gz
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: warn
+
+  prove:
+    needs: setup
+    runs-on: ubuntu-latest
+    # The GitHub-hosted maximum. Proofs run for hours; a lower ceiling would
+    # cancel one that was still making progress and report it as a failure.
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJSON(needs.setup.outputs.tests) }}
+    container:
+      image: runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
+      # A memory ceiling below the runner's own. When a proof outgrows it, the
+      # kernel kills a process inside this container and the job goes on to
+      # summarize and upload; without it the whole runner is lost and the job
+      # ends with nothing but exit code 137. No swap: a proof that thrashes for
+      # hours is worse than one that stops.
+      options: --user root --memory 13g --memory-swap 13g
+    env:
+      HOME: /home/user
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: kontrol-setup
+
+      - name: Restore build and setUp proofs
+        run: |
+          tar -xzf kontrol-setup.tar.gz
+          rm kontrol-setup.tar.gz
+
+      # One proof, in-process (--workers 1), with at most three branches of it
+      # explored at once; the profile's six was sized for a laptop, not for a
+      # runner's memory.
+      #
+      # Bounded inside the step, well under the job's 360 minutes, so that a
+      # proof still running is stopped with time left to summarize and upload.
+      # `timeout` signals its whole process group, which includes the
+      # kore-rpc-booster server kontrol spawns, so none outlive the prover.
+      # A proof cut short stays PENDING in the summary; it is not a failure.
+      - name: Prove
+        env:
+          TEST: ${{ matrix.test }}
         run: |
           set +e
-          timeout --signal=INT --kill-after=2m 300m \
-            kontrol prove --config-profile ${{ inputs.config-profile || 'tests' }} --workers 4
+          # One line every ten minutes, so memory growth is on record before it
+          # turns into a kill.
+          while sleep 600; do
+            echo "[resources $(date -u +%H:%M)] container memory $(( $(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0) >> 20 )) MiB, disk free $(df -h --output=avail . | tail -n 1 | tr -d ' ')"
+          done &
+          monitor=$!
+
+          timeout --signal=INT --kill-after=2m 320m \
+            kontrol prove --config-profile tests --match-test "$TEST" \
+              --workers 1 --max-frontier-parallel 3
           rc=$?
-          if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
-            echo "::error title=Kontrol time budget::kontrol prove was stopped at 300 minutes before every proof finished. See 'Summarize proofs' for per-proof status."
+          kill "$monitor" 2>/dev/null
+
+          oom=$(awk '$1 == "oom_kill" {print $2}' /sys/fs/cgroup/memory.events 2>/dev/null)
+          if [ "${oom:-0}" -gt 0 ]; then
+            echo "::error title=Kontrol out of memory::The kernel killed ${oom} process(es) in this job's container at its memory limit while proving $TEST."
+          elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+            echo "::error title=Kontrol time budget::kontrol prove was stopped at 320 minutes before $TEST finished. See 'Summarize proofs' for its status."
           fi
           exit "$rc"
 
       # `kontrol prove` prints failure reasons and counterexample models only when
       # the whole run completes, and proof.json does not store them. Recompute
-      # them against the definition this job kompiled, so a failed proof can be
+      # them against the definition this job uses, so a failed proof can be
       # diagnosed even when the run was cut short.
       - name: Summarize proofs
         if: always()
@@ -138,7 +231,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kontrol-proofs
+          name: kontrol-proofs-${{ matrix.test }}
           path: kontrol-report/
           retention-days: 14
           if-no-files-found: warn
