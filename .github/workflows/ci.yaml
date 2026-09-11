@@ -40,6 +40,6 @@ jobs:
         with:
           node-version: ${{ steps.nodeversion.outputs.version }}
           cache: yarn
-      - run: yarn install --immutable
+      - run: yarn install
       - run: yarn typecheck:scripts
   

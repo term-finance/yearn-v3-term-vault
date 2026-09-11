@@ -222,6 +222,7 @@ export async function fetchMaxSellableData(
 
     // Existing holdings
     currentRepoTokenValue,
+    repoTokenBalance: strategyRepoTokenBalance,
 
     // Simulation data (required)
     simulationData: {
@@ -286,6 +287,9 @@ async function findTermController(
  *
  * 4. SELL-TIME DRIFT: sellRepoToken first redeems matured repoTokens and settles completed
  *    auction offers, and it executes in a later block than the snapshot, so its values can
- *    differ slightly from these. strategy.simulateTransaction(repoToken, amount) returns the exact
- *    post-sale weighted maturity, which calculateMaxSellableRepoTokenAmount only estimates.
+ *    differ slightly from these. The snapshot does not count matured holdings as liquid, since
+ *    their redemption can fail; calling the permissionless strategy.auctionClosed() runs the same
+ *    cleanup, so a snapshot taken afterwards matches. strategy.simulateTransaction(repoToken,
+ *    amount) returns the exact post-sale weighted maturity, which
+ *    calculateMaxSellableRepoTokenAmount only estimates.
  */

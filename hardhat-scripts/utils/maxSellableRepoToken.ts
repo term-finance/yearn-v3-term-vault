@@ -96,6 +96,14 @@ export interface MaxSellableInputData {
    */
   currentRepoTokenValue?: BigNumber;
 
+  /**
+   * @dev Units: repoToken precision - the strategy's current balance of this repoToken; 0 if none.
+   *
+   * For a held repoToken, the weighted-maturity calculation normalizes balance + amount together,
+   * which can add one base unit more than normalizing the amount alone.
+   */
+  repoTokenBalance?: BigNumber;
+
   // Validation flags
   /** @dev Units: boolean - true if repoToken is blacklisted */
   isBlacklisted: boolean;
@@ -277,13 +285,18 @@ export function evaluateRepoTokenSale(
   // exactly known value.
   const weightedMaturity = inputData.simulationData.simulatedWeightedMaturity;
   const cumulativeWeightedTime = weightedMaturity.add(1).mul(totalAssetValue);
-  const weightedDenominator = totalAssetValue.add(amountInBase).sub(proceeds);
+  // RepoTokenList.getCumulativeRepoTokenData normalizes a held balance and the sale together
+  const balance = inputData.repoTokenBalance ?? ZERO;
+  const weightedAmountInBase = normalizeRepoTokenAmount(inputData, balance.add(repoTokenAmount)).sub(
+    normalizeRepoTokenAmount(inputData, balance)
+  );
+  const weightedDenominator = totalAssetValue.add(weightedAmountInBase).sub(proceeds);
   const weightedTimeToMaturityAfter = repoTokenAmount.isZero()
     ? weightedMaturity
     : weightedDenominator.lte(0)
       ? ZERO
       : ceilDiv(
-          cumulativeWeightedTime.add(inputData.repoTokenTimeToMaturity.mul(amountInBase)),
+          cumulativeWeightedTime.add(inputData.repoTokenTimeToMaturity.mul(weightedAmountInBase)),
           weightedDenominator
         );
 
