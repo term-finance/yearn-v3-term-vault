@@ -102,7 +102,7 @@ export interface MaxSellableInputData {
    * For a held repoToken, the weighted-maturity calculation normalizes balance + amount together,
    * which can add one base unit more than normalizing the amount alone.
    */
-  repoTokenBalance?: BigNumber;
+  repoTokenBalance: BigNumber;
 
   // Validation flags
   /** @dev Units: boolean - true if repoToken is blacklisted */
@@ -286,7 +286,7 @@ export function evaluateRepoTokenSale(
   const weightedMaturity = inputData.simulationData.simulatedWeightedMaturity;
   const cumulativeWeightedTime = weightedMaturity.add(1).mul(totalAssetValue);
   // RepoTokenList.getCumulativeRepoTokenData normalizes a held balance and the sale together
-  const balance = inputData.repoTokenBalance ?? ZERO;
+  const balance = inputData.repoTokenBalance;
   const weightedAmountInBase = normalizeRepoTokenAmount(inputData, balance.add(repoTokenAmount)).sub(
     normalizeRepoTokenAmount(inputData, balance)
   );
@@ -402,6 +402,18 @@ export function calculateMaxSellableRepoTokenAmount(
     return {
       maxAmount: ZERO,
       reason: "RepoToken has already matured",
+      limitingConstraint: "matured",
+    };
+  }
+
+  // removeAndRedeemMaturedTokens treats redemptionTimestamp <= block.timestamp as matured, so at
+  // exactly that timestamp sellRepoToken redeems a held balance before pricing the sale, leaving a
+  // state this snapshot does not describe.
+  if (inputData.repoTokenTimeToMaturity.isZero() && inputData.repoTokenBalance.gt(0)) {
+    return {
+      maxAmount: ZERO,
+      reason:
+        "RepoToken reaches its redemption timestamp in this block and sellRepoToken would first redeem the strategy's balance",
       limitingConstraint: "matured",
     };
   }
