@@ -11,6 +11,7 @@ const STRATEGY_ABI = [
   "function totalAssetValue() view returns (uint256)",
   "function repoTokenBlacklist(address) view returns (bool)",
   "function getRepoTokenHoldingValue(address repoToken) view returns (uint256)",
+  "function repoTokenHoldings() view returns (address[])",
   "function simulateTransaction(address repoToken, uint256 amount) view returns (uint256 simulatedWeightedMaturity, uint256 simulatedRepoTokenConcentrationRatio, uint256 simulatedLiquidityRatio)",
 ];
 
@@ -18,6 +19,7 @@ const REPO_TOKEN_ABI = [
   "function config() view returns (uint256 redemptionTimestamp, address purchaseToken, address termRepoServicer, address termRepoCollateralManager)",
   "function redemptionValue() view returns (uint256)",
   "function decimals() view returns (uint8)",
+  "function balanceOf(address account) view returns (uint256)",
 ];
 
 const ERC20_ABI = ["function decimals() view returns (uint8)"];
@@ -50,8 +52,9 @@ interface RepoTokenConfigView {
 
 export interface FetchDataOptions {
   /**
-   * Block to read every value at. Defaults to the latest block. The repoToken's time to maturity
-   * is measured from this block's timestamp, matching what the strategy computes at that block.
+   * Mined block to read every value at, as a number, hash or tag such as "latest" (the default)
+   * or "finalized". It is resolved to one block, and the repoToken's time to maturity is measured
+   * from that block's timestamp, matching what the strategy computes at that block.
    */
   blockTag?: providers.BlockTag;
 }
@@ -62,7 +65,9 @@ export interface FetchDataOptions {
  * This function demonstrates how to fetch each required data point from on-chain sources.
  * You can use this as a reference or modify it to use subgraphs, caching, or other optimizations.
  *
- * All reads are pinned to one block so that the values are mutually consistent.
+ * All reads are pinned to one block so that the values are mutually consistent. Contract calls
+ * can only name that block by number, so the block's hash is checked again after the reads and a
+ * reorganization in between raises an error instead of mixing two blocks.
  *
  * @param strategyAddress The address of a Strategy (Strategy.sol) deployment
  * @param repoToken The address of the repoToken to check
@@ -77,10 +82,11 @@ export async function fetchMaxSellableData(
   options: FetchDataOptions = {}
 ): Promise<MaxSellableInputData> {
   const blockTag = options.blockTag ?? "latest";
-  // ethers v5 resolves to null for a block the provider does not have, e.g. above the chain head
+  // ethers v5 resolves to null for a block the provider does not have, e.g. above the chain head;
+  // a pending block has no hash to pin to
   const block: providers.Block | null = await provider.getBlock(blockTag);
-  if (!block) {
-    throw new Error(`Block not found for blockTag ${String(blockTag)}`);
+  if (!block || block.number == null || !block.hash) {
+    throw new Error(`No mined block found for blockTag ${String(blockTag)}`);
   }
   const overrides = { blockTag: block.number };
 
@@ -98,6 +104,8 @@ export async function fetchMaxSellableData(
     config,
     redemptionValue,
     repoTokenDecimals,
+    strategyRepoTokenBalance,
+    repoTokenHoldings,
   ]: [
     StrategyStateView,
     BigNumber,
@@ -109,6 +117,8 @@ export async function fetchMaxSellableData(
     RepoTokenConfigView,
     BigNumber,
     number,
+    BigNumber,
+    string[],
   ] = await Promise.all([
     // Thresholds, ratios, markup and the discount rate adapter address
     strategy.strategyState(overrides),
@@ -126,6 +136,9 @@ export async function fetchMaxSellableData(
     // Purchase token value of one whole repoToken, scaled by 1e18
     repoTokenContract.redemptionValue(overrides),
     repoTokenContract.decimals(overrides),
+    repoTokenContract.balanceOf(strategyAddress, overrides),
+    // RepoTokens the strategy lists and therefore counts in its valuations
+    strategy.repoTokenHoldings(overrides),
   ]);
 
   const discountRateAdapter = new Contract(
@@ -146,6 +159,11 @@ export async function fetchMaxSellableData(
     discountRateAdapter.repoRedemptionHaircut(repoToken, overrides),
     assetContract.decimals(overrides),
   ]);
+
+  const blockAfterReads: providers.Block | null = await provider.getBlock(block.number);
+  if (!blockAfterReads || blockAfterReads.hash !== block.hash) {
+    throw new Error(`Block ${block.number} was reorganized while reading; retry`);
+  }
 
   const redemptionTimestamp = config.redemptionTimestamp;
   const blockTimestamp = BigNumber.from(block.timestamp);
@@ -189,6 +207,12 @@ export async function fetchMaxSellableData(
     isBlacklisted,
     // RepoTokenList.validateRepoToken rejects only redemptionTimestamp < block.timestamp
     isMatured: redemptionTimestamp.lt(blockTimestamp),
+    // A held balance is valued either through the list or, right after an auction settles,
+    // through the pending offer; with neither, getRepoTokenHoldingValue reports nothing for it.
+    hasUntrackedBalance:
+      strategyRepoTokenBalance.gt(0) &&
+      currentRepoTokenValue.isZero() &&
+      !repoTokenHoldings.some((holding) => holding.toLowerCase() === repoToken.toLowerCase()),
   };
 }
 

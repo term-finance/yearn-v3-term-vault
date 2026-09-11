@@ -105,6 +105,14 @@ export interface MaxSellableInputData {
    *      accepted, at face value.
    */
   isMatured: boolean;
+
+  /**
+   * @dev Units: boolean - true if the strategy holds a balance of this repoToken that none of its
+   *      views count: a direct transfer of a repoToken it does not list yet. sellRepoToken lists
+   *      the repoToken first and then counts that balance in every check, which neither this
+   *      snapshot nor simulateTransaction reflects.
+   */
+  hasUntrackedBalance: boolean;
 }
 
 /** The checks sellRepoToken applies to a sale, in the order it applies them. */
@@ -166,6 +174,7 @@ export interface MaxSellableResult {
     | SellRepoTokenCheck
     | "blacklisted"
     | "matured"
+    | "untrackedBalance"
     | "zeroBalance"
     | "zeroValue";
   /** Strategy state after selling maxAmount (the current state when maxAmount is zero) */
@@ -255,16 +264,19 @@ export function evaluateRepoTokenSale(
 
   // Strategy._calculateWeightedMaturity with the substitutes described in
   // MaxSellableInputData.simulationData. Rounded up, so comparing it with the threshold is the
-  // unrounded comparison the on-chain guarantee relies on.
+  // unrounded comparison the on-chain guarantee relies on. Selling nothing leaves the current,
+  // exactly known value.
   const weightedMaturity = inputData.simulationData.simulatedWeightedMaturity;
   const cumulativeWeightedTime = weightedMaturity.add(1).mul(totalAssetValue);
   const weightedDenominator = totalAssetValue.add(amountInBase).sub(proceeds);
-  const weightedTimeToMaturityAfter = weightedDenominator.lte(0)
-    ? ZERO
-    : ceilDiv(
-        cumulativeWeightedTime.add(inputData.repoTokenTimeToMaturity.mul(amountInBase)),
-        weightedDenominator
-      );
+  const weightedTimeToMaturityAfter = repoTokenAmount.isZero()
+    ? weightedMaturity
+    : weightedDenominator.lte(0)
+      ? ZERO
+      : ceilDiv(
+          cumulativeWeightedTime.add(inputData.repoTokenTimeToMaturity.mul(amountInBase)),
+          weightedDenominator
+        );
 
   // sellRepoToken reverts before this check when totalAssetValue is zero
   const liquidReserveRatioAfter = totalAssetValue.isZero()
@@ -335,8 +347,8 @@ const CHECK_FAILURE_REASONS: Record<SellRepoTokenCheck, string> = {
  * Each bound is solved from the linear form of its check, and the exact boundary around the
  * smallest one is then found with evaluateRepoTokenSale, so the liquid balance, reserve ratio and
  * concentration checks hold exactly as sellRepoToken computes them. The time-to-maturity check
- * uses a conservative estimate (see MaxSellableInputData.simulationData), so when it is the
- * binding check the true maximum can be slightly higher.
+ * uses substitutes that only err toward rejecting a sale (see MaxSellableInputData.simulationData),
+ * so when it is the binding check the true maximum can be slightly higher.
  * Eligibility checks that do not depend on the amount (term deployment, purchase token,
  * collateral parameters, paused state) are not evaluated.
  *
@@ -369,6 +381,15 @@ export function calculateMaxSellableRepoTokenAmount(
       maxAmount: ZERO,
       reason: "RepoToken has already matured",
       limitingConstraint: "matured",
+    };
+  }
+
+  if (inputData.hasUntrackedBalance) {
+    return {
+      maxAmount: ZERO,
+      reason:
+        "Strategy holds an unlisted balance of this repoToken that sellRepoToken would start counting",
+      limitingConstraint: "untrackedBalance",
     };
   }
 
@@ -423,6 +444,7 @@ export function calculateMaxSellableRepoTokenAmount(
   // A negative factor with a negative right-hand side gives a minimum amount: the strategy is at
   // or above its threshold and only a large enough sale would bring it back under. The estimate
   // cannot vouch for any sale from that state, so it is treated as allowing none.
+  // BigNumber is signed, so at or above the threshold the right-hand side is simply negative.
   const threshold = inputData.timeToMaturityThreshold;
   const maturityBounds = solveAmountBounds(
     inputData.repoTokenTimeToMaturity
