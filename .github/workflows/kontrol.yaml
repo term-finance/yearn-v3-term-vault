@@ -80,8 +80,57 @@ jobs:
       - name: Prove setUp
         run: kontrol prove --config-profile setup --workers 4
 
+      # Bounded inside the step, well under the job's 360 minutes. Reaching the
+      # job ceiling cancels whatever is running and leaves no summary; stopping
+      # here keeps ~30 minutes for the steps below (checkout, build and setUp
+      # take ~27). `timeout` signals its whole process group, which includes the
+      # kore-rpc-booster servers kontrol spawns, so none outlive the prover.
+      # Proofs cut short stay PENDING in the summary; they are not failures.
       - name: Prove tests
-        run: kontrol prove --config-profile ${{ inputs.config-profile || 'tests' }} --workers 4
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=2m 300m \
+            kontrol prove --config-profile ${{ inputs.config-profile || 'tests' }} --workers 4
+          rc=$?
+          if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+            echo "::error title=Kontrol time budget::kontrol prove was stopped at 300 minutes before every proof finished. See 'Summarize proofs' for per-proof status."
+          fi
+          exit "$rc"
+
+      # `kontrol prove` prints failure reasons and counterexample models only when
+      # the whole run completes, and proof.json does not store them. Recompute
+      # them against the definition this job kompiled, so a failed proof can be
+      # diagnosed even when the run was cut short.
+      - name: Summarize proofs
+        if: always()
+        run: |
+          mkdir -p kontrol-report
+          if [ ! -d out/proofs ]; then
+            echo "No proofs were written."
+            exit 0
+          fi
+          kontrol list 2>&1 | tee kontrol-report/list.txt
+          awk '/^APRProof: /{id=$2} /^ +status: ProofStatus.FAILED$/{print id}' \
+            kontrol-report/list.txt > kontrol-report/failed.txt
+          while read -r id; do
+            report="kontrol-report/failure-$(printf '%s' "$id" | tr -c 'A-Za-z0-9._-' '_').txt"
+            kontrol show --version "${id##*:}" --failure-information --counterexample-information \
+              "${id%:*}" > "$report" 2>&1 || true
+            echo "::group::Failure information: $id"
+            cat "$report"
+            echo "::endgroup::"
+          done < kontrol-report/failed.txt
+
+      # Kontrol names each proof directory after the test signature plus a `:N`
+      # version suffix, and upload-artifact rejects `:` in paths. A tarball keeps
+      # the names intact.
+      - name: Package proof artifacts
+        if: always()
+        run: |
+          mkdir -p kontrol-report
+          if [ -d out/proofs ]; then
+            tar -czf kontrol-report/proofs.tar.gz out/proofs
+          fi
 
       # The proof artifacts are what a failure is diagnosed from; without them a
       # red run says only "something did not prove".
@@ -90,6 +139,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kontrol-proofs
-          path: out/proofs/
+          path: kontrol-report/
           retention-days: 14
           if-no-files-found: warn
