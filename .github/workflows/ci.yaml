@@ -19,6 +19,11 @@ jobs:
       - name: Run non-Kontrol tests
         run: |
           forge test --no-match-path "src/test/kontrol/*" -vvv
+      # That exclusion also catches the one ordinary forge test in the
+      # directory: a concrete regression test for a list cycle that the formal
+      # verification found. It is not a proof, so it runs here.
+      - name: Run Kontrol counterexample regression test
+        run: forge test --match-path "src/test/kontrol/Counterexamples.t.sol" -vvv
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
       - name: Run coverage without Kontrol tests
