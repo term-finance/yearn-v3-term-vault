@@ -1,131 +1,153 @@
-import { BigNumber, ethers } from "ethers";
-import { Strategy } from "../../typechain-types/src/Strategy";
-import { ITermRepoToken } from "../../typechain-types/src/interfaces/term/ITermRepoToken";
+import { BigNumber, Contract, constants, providers } from "ethers";
 import { MaxSellableInputData } from "./maxSellableRepoToken";
+
+// Human-readable ABIs for the view functions this helper reads, so it runs without compiling the
+// contracts or generating TypeChain bindings. Strategy.sol exposes all of these; TwoWayStrategy.sol
+// has no simulateTransaction and an extra strategyState field, so it is not supported.
+const STRATEGY_ABI = [
+  "function asset() view returns (address)",
+  "function strategyState() view returns (address assetVault, address eventEmitter, address governorAddress, address prevTermController, address currTermController, address discountRateAdapter, uint256 timeToMaturityThreshold, uint256 requiredReserveRatio, uint256 discountRateMarkup, uint256 repoTokenConcentrationLimit)",
+  "function totalLiquidBalance() view returns (uint256)",
+  "function totalAssetValue() view returns (uint256)",
+  "function repoTokenBlacklist(address) view returns (bool)",
+  "function getRepoTokenHoldingValue(address repoToken) view returns (uint256)",
+  "function simulateTransaction(address repoToken, uint256 amount) view returns (uint256 simulatedWeightedMaturity, uint256 simulatedRepoTokenConcentrationRatio, uint256 simulatedLiquidityRatio)",
+];
+
+const REPO_TOKEN_ABI = [
+  "function config() view returns (uint256 redemptionTimestamp, address purchaseToken, address termRepoServicer, address termRepoCollateralManager)",
+  "function redemptionValue() view returns (uint256)",
+  "function decimals() view returns (uint8)",
+];
+
+const ERC20_ABI = ["function decimals() view returns (uint8)"];
+
+// ITermDiscountRateAdapter also overloads getDiscountRate(termController, repoToken); only the
+// single-argument form sellRepoToken uses is declared, which keeps the call unambiguous.
+const DISCOUNT_RATE_ADAPTER_ABI = [
+  "function getDiscountRate(address repoToken) view returns (uint256)",
+  "function repoRedemptionHaircut(address repoToken) view returns (uint256)",
+];
+
+interface StrategyStateView {
+  discountRateAdapter: string;
+  timeToMaturityThreshold: BigNumber;
+  requiredReserveRatio: BigNumber;
+  discountRateMarkup: BigNumber;
+  repoTokenConcentrationLimit: BigNumber;
+}
+
+interface SimulationView {
+  simulatedWeightedMaturity: BigNumber;
+  simulatedRepoTokenConcentrationRatio: BigNumber;
+  simulatedLiquidityRatio: BigNumber;
+}
+
+interface RepoTokenConfigView {
+  redemptionTimestamp: BigNumber;
+  purchaseToken: string;
+}
+
+export interface FetchDataOptions {
+  /**
+   * Block to read every value at. Defaults to the latest block. The repoToken's time to maturity
+   * is measured from this block's timestamp, matching what the strategy computes at that block.
+   */
+  blockTag?: providers.BlockTag;
+}
 
 /**
  * Fetches all required data for calculating maximum sellable repoToken amount.
- * 
+ *
  * This function demonstrates how to fetch each required data point from on-chain sources.
  * You can use this as a reference or modify it to use subgraphs, caching, or other optimizations.
- * 
- * @param strategy The Strategy contract instance
+ *
+ * All reads are pinned to one block so that the values are mutually consistent.
+ *
+ * @param strategyAddress The address of a Strategy (Strategy.sol) deployment
  * @param repoToken The address of the repoToken to check
- * @param providerOrSigner The ethers provider or signer
+ * @param provider The ethers provider to read from
+ * @param options Optional block to read at
  * @returns All input data needed for calculateMaxSellableRepoTokenAmount
  */
 export async function fetchMaxSellableData(
-  strategy: Strategy,
+  strategyAddress: string,
   repoToken: string,
-  providerOrSigner: any
+  provider: providers.Provider,
+  options: FetchDataOptions = {}
 ): Promise<MaxSellableInputData> {
-  
-  // ============================================================================
-  // STRATEGY STATE DATA
-  // ============================================================================
-  
-  // Get strategy state (contains thresholds, ratios, and adapter addresses)
-  // Source: strategy.strategyState() -> StrategyState struct
-  const strategyState = await strategy.strategyState();
-  
-  // Get current liquid balance (assets available for withdrawal)
-  // Source: strategy.totalLiquidBalance() -> uint256
-  const liquidBalance = await strategy.totalLiquidBalance();
-  
-  // Get total asset value (liquid balance + present value of repoTokens)
-  // Source: strategy.totalAssetValue() -> uint256
-  const totalAssetValue = await strategy.totalAssetValue();
-  
-  // Check if repoToken is blacklisted
-  // Source: strategy.repoTokenBlacklist(repoToken) -> bool
-  const isBlacklisted = await strategy.repoTokenBlacklist(repoToken);
-  
-  // ============================================================================
-  // REPOTOKEN DATA
-  // ============================================================================
-  
-  // Get repoToken contract instance
-  const repoTokenContract = await ethers.getContractAt(
-    "ITermRepoToken",
-    repoToken,
-    providerOrSigner
-  ) as ITermRepoToken;
-  
-  // Get repoToken config (contains redemptionTimestamp, purchaseToken, etc.)
-  // Source: repoToken.config() -> Config struct
-  const config = await repoTokenContract.config();
+  const block = await provider.getBlock(options.blockTag ?? "latest");
+  const overrides = { blockTag: block.number };
+
+  const strategy = new Contract(strategyAddress, STRATEGY_ABI, provider);
+  const repoTokenContract = new Contract(repoToken, REPO_TOKEN_ABI, provider);
+
+  const [
+    strategyState,
+    liquidBalance,
+    totalAssetValue,
+    isBlacklisted,
+    assetAddress,
+    simulation,
+    currentRepoTokenValue,
+    config,
+    redemptionValue,
+    repoTokenDecimals,
+  ]: [
+    StrategyStateView,
+    BigNumber,
+    BigNumber,
+    boolean,
+    string,
+    SimulationView,
+    BigNumber,
+    RepoTokenConfigView,
+    BigNumber,
+    number,
+  ] = await Promise.all([
+    // Thresholds, ratios, markup and the discount rate adapter address
+    strategy.strategyState(overrides),
+    // Assets held directly or in the Yearn vault
+    strategy.totalLiquidBalance(overrides),
+    // Liquid balance plus the present value of repoTokens and pending offers
+    strategy.totalAssetValue(overrides),
+    strategy.repoTokenBlacklist(repoToken, overrides),
+    strategy.asset(overrides),
+    // With address(0) and 0 this returns the current weighted maturity and liquidity ratio
+    strategy.simulateTransaction(constants.AddressZero, 0, overrides),
+    // Present value of this repoToken already held or pending in offers; 0 if none
+    strategy.getRepoTokenHoldingValue(repoToken, overrides),
+    repoTokenContract.config(overrides),
+    // Purchase token value of one whole repoToken, scaled by 1e18
+    repoTokenContract.redemptionValue(overrides),
+    repoTokenContract.decimals(overrides),
+  ]);
+
+  const discountRateAdapter = new Contract(
+    strategyState.discountRateAdapter,
+    DISCOUNT_RATE_ADAPTER_ABI,
+    provider
+  );
+  const assetContract = new Contract(assetAddress, ERC20_ABI, provider);
+
+  const [discountRate, repoRedemptionHaircut, assetDecimals]: [
+    BigNumber,
+    BigNumber,
+    number,
+  ] = await Promise.all([
+    // Oracle discount rate, scaled by 1e18; sellRepoToken adds discountRateMarkup to it
+    discountRateAdapter.getDiscountRate(repoToken, overrides),
+    // Scaled by 1e18; 0 means no haircut
+    discountRateAdapter.repoRedemptionHaircut(repoToken, overrides),
+    assetContract.decimals(overrides),
+  ]);
+
   const redemptionTimestamp = config.redemptionTimestamp;
-  
-  // Get redemption value (face value at maturity)
-  // Source: repoToken.redemptionValue() -> uint256
-  const redemptionValue = await repoTokenContract.redemptionValue();
-  
-  // Get repoToken decimals
-  // Source: repoToken.decimals() -> uint8
-  const repoTokenDecimals = await repoTokenContract.decimals();
-  
-  // Calculate time to maturity (current time vs redemption timestamp)
-  // Source: block.timestamp (or Date.now() / 1000 for off-chain)
-  const currentTime = BigNumber.from(Math.floor(Date.now() / 1000));
-  const repoTokenTimeToMaturity = redemptionTimestamp.gt(currentTime)
-    ? redemptionTimestamp.sub(currentTime)
+  const blockTimestamp = BigNumber.from(block.timestamp);
+  const repoTokenTimeToMaturity = redemptionTimestamp.gt(blockTimestamp)
+    ? redemptionTimestamp.sub(blockTimestamp)
     : BigNumber.from(0);
-  
-  // ============================================================================
-  // ASSET DATA
-  // ============================================================================
-  
-  // Get asset address
-  // Source: strategy.asset() -> address
-  const assetAddress = await strategy.asset();
-  
-  // Get asset decimals
-  // Source: asset.decimals() -> uint8
-  const assetContract = await ethers.getContractAt("ERC20", assetAddress, providerOrSigner);
-  const assetDecimals = await assetContract.decimals();
-  const purchaseTokenPrecision = BigNumber.from(10).pow(assetDecimals);
-  
-  // ============================================================================
-  // DISCOUNT RATE ADAPTER DATA
-  // ============================================================================
-  
-  // Get discount rate adapter (from strategyState)
-  const discountRateAdapter = strategyState.discountRateAdapter;
-  
-  // Get discount rate for this repoToken
-  // Source: discountRateAdapter.getDiscountRate(repoToken) -> uint256 (scaled by RATE_PRECISION)
-  const discountRate = await discountRateAdapter.getDiscountRate(repoToken);
-  
-  // Get redemption haircut for this repoToken
-  // Source: discountRateAdapter.repoRedemptionHaircut(repoToken) -> uint256 (scaled by RATE_PRECISION)
-  const repoRedemptionHaircut = await discountRateAdapter.repoRedemptionHaircut(repoToken);
-  
-  // ============================================================================
-  // SIMULATION DATA (REQUIRED)
-  // ============================================================================
-  
-  // Get current weighted maturity and other metrics by simulating a transaction with no changes
-  // Source: strategy.simulateTransaction(address(0), 0) -> (weightedMaturity, concentration, liquidityRatio)
-  // 
-  // This returns the current state:
-  // - simulatedWeightedMaturity: current weighted maturity in seconds
-  // - simulatedRepoTokenConcentrationRatio: current concentration (scaled by RATE_PRECISION)
-  // - simulatedLiquidityRatio: current liquidity ratio (scaled by RATE_PRECISION)
-  const simulation = await strategy.simulateTransaction(ethers.constants.AddressZero, 0);
-  
-  // ============================================================================
-  // EXISTING HOLDINGS DATA
-  // ============================================================================
-  
-  // Get current value of this specific repoToken held by the strategy
-  // Source: strategy.getRepoTokenHoldingValue(repoToken) -> uint256
-  // Returns 0 if the repoToken is not currently held
-  const currentRepoTokenValue = await strategy.getRepoTokenHoldingValue(repoToken);
-  
-  // ============================================================================
-  // ASSEMBLE AND RETURN DATA
-  // ============================================================================
-  
+
   return {
     // Strategy state
     liquidBalance,
@@ -134,30 +156,30 @@ export async function fetchMaxSellableData(
     requiredReserveRatio: strategyState.requiredReserveRatio,
     repoTokenConcentrationLimit: strategyState.repoTokenConcentrationLimit,
     discountRateMarkup: strategyState.discountRateMarkup,
-    
+
     // RepoToken info
     redemptionTimestamp,
     redemptionValue,
     repoTokenDecimals,
     repoTokenTimeToMaturity,
-    
+
     // Discount rate adapter values
     discountRate,
     repoRedemptionHaircut,
-    
+
     // Asset info
-    purchaseTokenPrecision,
-    
+    purchaseTokenPrecision: BigNumber.from(10).pow(assetDecimals),
+
     // Existing holdings
     currentRepoTokenValue,
-    
+
     // Simulation data (required)
     simulationData: {
       simulatedWeightedMaturity: simulation.simulatedWeightedMaturity,
       simulatedRepoTokenConcentrationRatio: simulation.simulatedRepoTokenConcentrationRatio,
       simulatedLiquidityRatio: simulation.simulatedLiquidityRatio,
     },
-    
+
     // Validation flags
     isBlacklisted,
   };
@@ -165,29 +187,27 @@ export async function fetchMaxSellableData(
 
 /**
  * OPTIMIZATION NOTES:
- * 
- * 1. BATCHING: Many of these calls can be batched using Promise.all() to reduce latency
- * 
- * 2. CACHING: Some values change infrequently and can be cached:
+ *
+ * 1. CACHING: Some values change infrequently and can be cached:
  *    - Strategy state (thresholds, ratios) - changes only on governance updates
  *    - RepoToken config (redemptionTimestamp, redemptionValue) - immutable per repoToken
  *    - Discount rates and haircuts - may change but infrequently
  *    - Asset decimals - immutable
- * 
- * 3. SUBGRAPHS: For production, consider using subgraphs to reduce RPC calls:
+ *    Mixing cached values with fresh ones gives up the single-block consistency above.
+ *
+ * 2. SUBGRAPHS: For production, consider using subgraphs to reduce RPC calls:
  *    - Strategy state can be indexed
  *    - RepoToken holdings can be aggregated
  *    - Historical data can be queried efficiently
- * 
- * 4. FREQUENT UPDATES: These values change frequently and should be fetched fresh:
+ *
+ * 3. FREQUENT UPDATES: These values change frequently and should be fetched fresh:
  *    - liquidBalance - changes on every deposit/withdrawal
  *    - totalAssetValue - changes as repoTokens mature or are added/removed
  *    - simulation data - reflects current portfolio state
  *    - currentRepoTokenValue - changes as holdings change
- * 
- * 5. ESTIMATION: existingAmount is estimated as totalAssetValue - liquidBalance
- *    This is approximate because totalAssetValue uses discounted present values,
- *    while existingAmount should be normalized (face value) amounts.
- *    For exact values, you would need to call getCumulativeRepoTokenData() directly
- *    (which is internal, so not accessible externally).
+ *
+ * 4. SELL-TIME DRIFT: sellRepoToken first redeems matured repoTokens and settles completed
+ *    auction offers, and it executes in a later block than the snapshot, so its values can
+ *    differ slightly from these. strategy.simulateTransaction(repoToken, amount) returns the exact
+ *    post-sale weighted maturity, which calculateMaxSellableRepoTokenAmount only estimates.
  */
