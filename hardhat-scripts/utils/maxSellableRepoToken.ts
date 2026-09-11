@@ -376,11 +376,14 @@ const CHECK_FAILURE_REASONS: Record<SellRepoTokenCheck, string> = {
  *
  * This is a pure function that takes all required data as input - no RPC calls.
  *
- * Each bound is solved from the linear form of its check, and the exact boundary around the
- * smallest one is then found with evaluateRepoTokenSale, so the liquid balance, reserve ratio and
- * concentration checks hold exactly as sellRepoToken computes them. The time-to-maturity check
- * uses substitutes that only err toward rejecting a sale (see MaxSellableInputData.simulationData),
- * so when it is the binding check the true maximum can be slightly higher.
+ * Each bound is solved from the linear form of its check, and the result is then settled against
+ * evaluateRepoTokenSale: it is the largest amount below the first one that fails, so it passes the
+ * liquid balance, reserve ratio and concentration checks exactly as sellRepoToken computes them.
+ * The contract's flooring can let a check pass again within about one base unit of normalized
+ * value past that first failure; such marginally larger amounts are not searched for. The
+ * time-to-maturity check uses substitutes that only err toward rejecting a sale (see
+ * MaxSellableInputData.simulationData), so when it is the binding check the true maximum can be
+ * slightly higher.
  * Eligibility checks that do not depend on the amount (term deployment, purchase token,
  * collateral parameters, paused state) are not evaluated.
  *
@@ -556,8 +559,10 @@ export function calculateMaxSellableRepoTokenAmount(
 
   // The analytic bounds ignore the contract's intermediate flooring, so the smallest one can be
   // off by a few units either way; a zero bound can even hide dust amounts whose value floors to
-  // zero. Settle the exact boundary with the contract's math: step up from the bound while larger
-  // amounts still pass, or search down if the bound itself fails. Selling nothing always passes.
+  // zero. Settle the result with the contract's math: step up from the bound while larger amounts
+  // still pass, or search down if the bound itself fails. `passing` only ever holds an amount that
+  // passed, so the result passes even where flooring makes the checks non-monotone. Selling
+  // nothing always passes.
   const passes = (amount: BigNumber) =>
     amount.isZero() || evaluateRepoTokenSale(inputData, amount).failedChecks.length === 0;
   // Largest passing amount in [passing, failing), given that `passing` passes and `failing` fails.

@@ -307,6 +307,12 @@ async function findTermController(
  *    auction offers, and it executes in a later block than the snapshot, so its values can
  *    differ slightly from these. While matured holdings await redemption the calculator declines
  *    to size (hasMaturedHoldings); calling the permissionless strategy.auctionClosed() runs that
- *    cleanup. strategy.simulateTransaction(repoToken, amount) returns the exact post-sale weighted
+ *    cleanup. The same cleanup settles completed or cancelled auction offers for other
+ *    repoTokens: unlocked purchase tokens return to the liquid balance at the value counted here,
+ *    and delivered repoTokens join the holdings at the same discount rate, which leaves the checks
+ *    unchanged or looser. The exception is a delivered repoToken that now fails the strategy's
+ *    validation and stops being valued; offers are not exposed by the strategy's views, so that
+ *    case is not detected, and calling auctionClosed() before sizing rules it out.
+ *    strategy.simulateTransaction(repoToken, amount) returns the exact post-sale weighted
  *    maturity, which calculateMaxSellableRepoTokenAmount only estimates.
  */
