@@ -74,7 +74,8 @@ export interface MaxSellableInputData {
    * D >= totalAssetValue (holdings count at present value, not face value), so while
    * simulatedWeightedMaturity < threshold, a sale that passes the substituted check also passes
    * on-chain. At or above the threshold no sale can be vouched for, so the check fails for every
-   * amount.
+   * amount. The guarantee also assumes the repoToken has no untracked balance or auction offer at
+   * the strategy; the calculator declines to size those states (see the validation flags).
    */
   simulationData: {
     /** @dev Units: seconds - Current weighted maturity from simulateTransaction */
@@ -107,12 +108,19 @@ export interface MaxSellableInputData {
   isMatured: boolean;
 
   /**
-   * @dev Units: boolean - true if the strategy holds a balance of this repoToken that none of its
-   *      views count: a direct transfer of a repoToken it does not list yet. sellRepoToken lists
-   *      the repoToken first and then counts that balance in every check, which neither this
-   *      snapshot nor simulateTransaction reflects.
+   * @dev Units: boolean - true if the strategy holds a balance of this repoToken without listing
+   *      it (a direct transfer, or repoTokens from an auction it has not processed yet).
+   *      sellRepoToken lists the repoToken first and then values that balance as a holding, which
+   *      this snapshot does not reflect.
    */
   hasUntrackedBalance: boolean;
+
+  /**
+   * @dev Units: boolean - true if the strategy has an auction offer for this repoToken. Its
+   *      weighted-maturity calculation then replaces that offer's amount with the sale amount,
+   *      which the time-to-maturity estimate does not model.
+   */
+  hasPendingOffer: boolean;
 }
 
 /** The checks sellRepoToken applies to a sale, in the order it applies them. */
@@ -175,6 +183,7 @@ export interface MaxSellableResult {
     | "blacklisted"
     | "matured"
     | "untrackedBalance"
+    | "pendingOffer"
     | "zeroBalance"
     | "zeroValue";
   /** Strategy state after selling maxAmount (the current state when maxAmount is zero) */
@@ -390,6 +399,15 @@ export function calculateMaxSellableRepoTokenAmount(
       reason:
         "Strategy holds an unlisted balance of this repoToken that sellRepoToken would start counting",
       limitingConstraint: "untrackedBalance",
+    };
+  }
+
+  if (inputData.hasPendingOffer) {
+    return {
+      maxAmount: ZERO,
+      reason:
+        "Strategy has an auction offer for this repoToken, which changes how sellRepoToken computes weighted maturity",
+      limitingConstraint: "pendingOffer",
     };
   }
 

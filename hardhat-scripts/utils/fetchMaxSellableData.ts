@@ -12,6 +12,7 @@ const STRATEGY_ABI = [
   "function repoTokenBlacklist(address) view returns (bool)",
   "function getRepoTokenHoldingValue(address repoToken) view returns (uint256)",
   "function repoTokenHoldings() view returns (address[])",
+  "function calculateRepoTokenPresentValue(address repoToken, uint256 discountRate, uint256 amount) view returns (uint256)",
   "function simulateTransaction(address repoToken, uint256 amount) view returns (uint256 simulatedWeightedMaturity, uint256 simulatedRepoTokenConcentrationRatio, uint256 simulatedLiquidityRatio)",
 ];
 
@@ -24,14 +25,20 @@ const REPO_TOKEN_ABI = [
 
 const ERC20_ABI = ["function decimals() view returns (uint8)"];
 
-// ITermDiscountRateAdapter also overloads getDiscountRate(termController, repoToken); only the
-// single-argument form sellRepoToken uses is declared, which keeps the call unambiguous.
+// getDiscountRate is overloaded, so it is called by full signature: sellRepoToken prices with the
+// single-argument form, while getRepoTokenHoldingValue values listed balances with the
+// (termController, repoToken) form.
 const DISCOUNT_RATE_ADAPTER_ABI = [
   "function getDiscountRate(address repoToken) view returns (uint256)",
+  "function getDiscountRate(address termController, address repoToken) view returns (uint256)",
   "function repoRedemptionHaircut(address repoToken) view returns (uint256)",
 ];
 
+const TERM_CONTROLLER_ABI = ["function isTermDeployed(address termContract) view returns (bool)"];
+
 interface StrategyStateView {
+  prevTermController: string;
+  currTermController: string;
   discountRateAdapter: string;
   timeToMaturityThreshold: BigNumber;
   requiredReserveRatio: BigNumber;
@@ -154,11 +161,31 @@ export async function fetchMaxSellableData(
     number,
   ] = await Promise.all([
     // Oracle discount rate, scaled by 1e18; sellRepoToken adds discountRateMarkup to it
-    discountRateAdapter.getDiscountRate(repoToken, overrides),
+    discountRateAdapter["getDiscountRate(address)"](repoToken, overrides),
     // Scaled by 1e18; 0 means no haircut
     discountRateAdapter.repoRedemptionHaircut(repoToken, overrides),
     assetContract.decimals(overrides),
   ]);
+
+  const isListed = repoTokenHoldings.some(
+    (holding) => holding.toLowerCase() === repoToken.toLowerCase()
+  );
+  // getRepoTokenHoldingValue adds the value of any auction offer for this repoToken to the present
+  // value of the listed balance; recomputing the latter the same way isolates the offer.
+  let listedBalanceValue = BigNumber.from(0);
+  if (isListed) {
+    const termController = await findTermController(strategyState, repoToken, provider, overrides);
+    listedBalanceValue = await strategy.calculateRepoTokenPresentValue(
+      repoToken,
+      await discountRateAdapter["getDiscountRate(address,address)"](
+        termController,
+        repoToken,
+        overrides
+      ),
+      strategyRepoTokenBalance,
+      overrides
+    );
+  }
 
   const blockAfterReads: providers.Block | null = await provider.getBlock(block.number);
   if (!blockAfterReads || blockAfterReads.hash !== block.hash) {
@@ -207,13 +234,33 @@ export async function fetchMaxSellableData(
     isBlacklisted,
     // RepoTokenList.validateRepoToken rejects only redemptionTimestamp < block.timestamp
     isMatured: redemptionTimestamp.lt(blockTimestamp),
-    // A held balance is valued either through the list or, right after an auction settles,
-    // through the pending offer; with neither, getRepoTokenHoldingValue reports nothing for it.
-    hasUntrackedBalance:
-      strategyRepoTokenBalance.gt(0) &&
-      currentRepoTokenValue.isZero() &&
-      !repoTokenHoldings.some((holding) => holding.toLowerCase() === repoToken.toLowerCase()),
+    hasUntrackedBalance: strategyRepoTokenBalance.gt(0) && !isListed,
+    hasPendingOffer: currentRepoTokenValue.gt(listedBalanceValue),
   };
+}
+
+/**
+ * The term controller getRepoTokenHoldingValue prices a listed repoToken with: the current
+ * controller if it deployed the repoToken, else the previous one, else address(0).
+ */
+async function findTermController(
+  strategyState: StrategyStateView,
+  repoToken: string,
+  provider: providers.Provider,
+  overrides: { blockTag: number }
+): Promise<string> {
+  for (const controller of [strategyState.currTermController, strategyState.prevTermController]) {
+    if (
+      controller !== constants.AddressZero &&
+      (await new Contract(controller, TERM_CONTROLLER_ABI, provider).isTermDeployed(
+        repoToken,
+        overrides
+      ))
+    ) {
+      return controller;
+    }
+  }
+  return constants.AddressZero;
 }
 
 /**
