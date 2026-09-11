@@ -444,7 +444,7 @@ export function calculateMaxSellableRepoTokenAmount(
     return {
       maxAmount: ZERO,
       reason:
-        "Strategy holds matured repoTokens that sellRepoToken would try to redeem first; strategy.auctionClosed() redeems them",
+        "Strategy holds matured repoTokens that sellRepoToken would try to redeem first; strategy.auctionClosed() attempts the same redemption, and sizing resumes once it succeeds",
       limitingConstraint: "maturedHoldings",
     };
   }
