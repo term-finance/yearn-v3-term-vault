@@ -187,13 +187,30 @@ export async function fetchMaxSellableData(
     );
   }
 
+  // sellRepoToken first redeems every listed repoToken at or past its redemption timestamp, which
+  // can move the liquid balance and total asset value this snapshot reads.
+  const blockTimestamp = BigNumber.from(block.timestamp);
+  const hasMaturedHoldings = (
+    await Promise.all(
+      repoTokenHoldings
+        .filter((holding) => holding.toLowerCase() !== repoToken.toLowerCase())
+        .map(async (holding) => {
+          const token = new Contract(holding, REPO_TOKEN_ABI, provider);
+          const [holdingConfig, balance]: [RepoTokenConfigView, BigNumber] = await Promise.all([
+            token.config(overrides),
+            token.balanceOf(strategyAddress, overrides),
+          ]);
+          return holdingConfig.redemptionTimestamp.lte(blockTimestamp) && balance.gt(0);
+        })
+    )
+  ).some((matured) => matured);
+
   const blockAfterReads: providers.Block | null = await provider.getBlock(block.number);
   if (!blockAfterReads || blockAfterReads.hash !== block.hash) {
     throw new Error(`Block ${block.number} was reorganized while reading; retry`);
   }
 
   const redemptionTimestamp = config.redemptionTimestamp;
-  const blockTimestamp = BigNumber.from(block.timestamp);
   const repoTokenTimeToMaturity = redemptionTimestamp.gt(blockTimestamp)
     ? redemptionTimestamp.sub(blockTimestamp)
     : BigNumber.from(0);
@@ -237,6 +254,7 @@ export async function fetchMaxSellableData(
     isMatured: redemptionTimestamp.lt(blockTimestamp),
     hasUntrackedBalance: strategyRepoTokenBalance.gt(0) && !isListed,
     hasPendingOffer: currentRepoTokenValue.gt(listedBalanceValue),
+    hasMaturedHoldings,
   };
 }
 
@@ -287,9 +305,8 @@ async function findTermController(
  *
  * 4. SELL-TIME DRIFT: sellRepoToken first redeems matured repoTokens and settles completed
  *    auction offers, and it executes in a later block than the snapshot, so its values can
- *    differ slightly from these. The snapshot does not count matured holdings as liquid, since
- *    their redemption can fail; calling the permissionless strategy.auctionClosed() runs the same
- *    cleanup, so a snapshot taken afterwards matches. strategy.simulateTransaction(repoToken,
- *    amount) returns the exact post-sale weighted maturity, which
- *    calculateMaxSellableRepoTokenAmount only estimates.
+ *    differ slightly from these. While matured holdings await redemption the calculator declines
+ *    to size (hasMaturedHoldings); calling the permissionless strategy.auctionClosed() runs that
+ *    cleanup. strategy.simulateTransaction(repoToken, amount) returns the exact post-sale weighted
+ *    maturity, which calculateMaxSellableRepoTokenAmount only estimates.
  */

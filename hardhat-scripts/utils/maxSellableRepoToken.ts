@@ -129,6 +129,15 @@ export interface MaxSellableInputData {
    *      which the time-to-maturity estimate does not model.
    */
   hasPendingOffer: boolean;
+
+  /**
+   * @dev Units: boolean - true if the strategy holds another listed repoToken at or past its
+   *      redemption timestamp. sellRepoToken tries to redeem those first, which can change the
+   *      liquid balance and total asset value this snapshot holds; the permissionless
+   *      strategy.auctionClosed() performs the same cleanup. A holding whose redemption fails
+   *      stays listed, so this remains set until it can be redeemed.
+   */
+  hasMaturedHoldings: boolean;
 }
 
 /** The checks sellRepoToken applies to a sale, in the order it applies them. */
@@ -192,6 +201,7 @@ export interface MaxSellableResult {
     | "matured"
     | "untrackedBalance"
     | "pendingOffer"
+    | "maturedHoldings"
     | "zeroBalance"
     | "zeroValue";
   /** Strategy state after selling maxAmount (the current state when maxAmount is zero) */
@@ -424,6 +434,15 @@ export function calculateMaxSellableRepoTokenAmount(
       reason:
         "Strategy holds an unlisted balance of this repoToken that sellRepoToken would start counting",
       limitingConstraint: "untrackedBalance",
+    };
+  }
+
+  if (inputData.hasMaturedHoldings) {
+    return {
+      maxAmount: ZERO,
+      reason:
+        "Strategy holds matured repoTokens that sellRepoToken would try to redeem first; strategy.auctionClosed() redeems them",
+      limitingConstraint: "maturedHoldings",
     };
   }
 
