@@ -23,13 +23,15 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
   push:
-    # Changes to the proofs themselves, their lemmas, or the code they cover
-    # should be checked before they are a night old.
+    # Changes to the proofs themselves, their lemmas, the code they cover, or
+    # the compiler settings that code is built with should be checked before
+    # they are a night old.
     paths:
       - "src/RepoTokenList.sol"
       - "src/TermAuctionList.sol"
       - "src/test/kontrol/**"
       - "kontrol.toml"
+      - "foundry.toml"
       - ".github/workflows/kontrol.yaml"
 
 permissions:
@@ -176,10 +178,14 @@ jobs:
           done &
           monitor=$!
 
-          timeout --signal=INT --kill-after=2m 320m \
-            kontrol prove --config-profile tests --match-test "$TEST" \
-              --workers 1 --max-frontier-parallel 3
-          rc=$?
+          # Kept in a file as well, to tell a backend crash from a failed proof:
+          # kontrol reports both as "PROOF FAILED" with the same exit code.
+          { timeout --signal=INT --kill-after=2m 320m \
+              kontrol prove --config-profile tests --match-test "$TEST" \
+                --workers 1 --max-frontier-parallel 3 2>&1
+            echo "$?" > kontrol-prove.rc
+          } | tee kontrol-prove.log
+          rc=$(cat kontrol-prove.rc)
           kill "$monitor" 2>/dev/null
 
           oom=$(awk '$1 == "oom_kill" {print $2}' /sys/fs/cgroup/memory.events 2>/dev/null)
@@ -187,6 +193,8 @@ jobs:
             echo "::error title=Kontrol out of memory::The kernel killed ${oom} process(es) in this job's container at its memory limit while proving $TEST."
           elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
             echo "::error title=Kontrol time budget::kontrol prove was stopped at 320 minutes before $TEST finished. See 'Summarize proofs' for its status."
+          elif grep -q 'Proof crashed' kontrol-prove.log; then
+            echo "::error title=Kontrol backend crash::The K backend raised an internal error while proving $TEST, so the proof stopped unfinished (PENDING): it is neither proved nor disproved. The error follows 'Proof crashed' in this step's log."
           fi
           exit "$rc"
 
