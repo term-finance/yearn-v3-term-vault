@@ -195,6 +195,14 @@ export interface MaxSellableResult {
   /** @dev Units: repoToken precision */
   maxAmount: BigNumber;
   reason?: string;
+  /**
+   * The sellRepoToken check that binds maxAmount (a SellRepoTokenCheck), or why nothing was sized.
+   * "blacklisted", "zeroBalance" and a "matured" repoToken past its redemption timestamp are
+   * rejected by sellRepoToken itself. The other values are states this helper declines to size
+   * even though the contract might accept a sale: "matured" at exactly the redemption timestamp
+   * with a held balance, "untrackedBalance", "pendingOffer" and "maturedHoldings" (the snapshot
+   * cannot describe the post-cleanup state) and "zeroValue" (a sale would pay nothing).
+   */
   limitingConstraint?:
     | SellRepoTokenCheck
     | "blacklisted"
@@ -402,15 +410,6 @@ export function calculateMaxSellableRepoTokenAmount(
     };
   }
 
-  // sellRepoToken requires both to be non-zero
-  if (inputData.liquidBalance.isZero() || inputData.totalAssetValue.isZero()) {
-    return {
-      maxAmount: ZERO,
-      reason: "Insufficient liquid balance",
-      limitingConstraint: "zeroBalance",
-    };
-  }
-
   if (inputData.isMatured) {
     return {
       maxAmount: ZERO,
@@ -458,6 +457,16 @@ export function calculateMaxSellableRepoTokenAmount(
     };
   }
 
+  // Checked after the cleanup-related states above, which can change these values first.
+  // sellRepoToken requires both to be non-zero.
+  if (inputData.liquidBalance.isZero() || inputData.totalAssetValue.isZero()) {
+    return {
+      maxAmount: ZERO,
+      reason: "Insufficient liquid balance",
+      limitingConstraint: "zeroBalance",
+    };
+  }
+
   const liquidBalance = inputData.liquidBalance;
   const totalAssetValue = inputData.totalAssetValue;
   const precision = inputData.purchaseTokenPrecision;
@@ -474,7 +483,8 @@ export function calculateMaxSellableRepoTokenAmount(
   if (normalizedNumerator.isZero()) {
     return {
       maxAmount: ZERO,
-      reason: "RepoToken has zero redemption value",
+      reason:
+        "RepoToken has zero redemption value, so a sale would pay nothing; not sized",
       limitingConstraint: "zeroValue",
     };
   }
