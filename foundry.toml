@@ -21,3 +21,32 @@ remappings = [
 
 [lint]
 lint_on_build = false
+
+# Halmos proves the Kontrol list invariants in the form scripts/halmos-from-kontrol.py generates.
+# `kontrol-cheatcodes/` resolves to halmos/kontrol-shim instead of the submodule, so Kontrol's
+# cheatcodes are answered by Halmos. halmos 0.3.3 reads its build from `out` and needs the AST.
+[profile.halmos]
+evm_version = 'shanghai'
+src = 'src'
+out = 'out'
+cache_path = 'cache-halmos'
+# The generated proofs live outside src/, where no default-profile forge command finds them.
+test = 'halmos/generated'
+ast = true
+libs = ['lib']
+solc = "0.8.23"
+optimizer = true
+optimizer_runs = 50
+remappings = [
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "forge-std/=lib/forge-std/src/",
+    "@tokenized-strategy/=lib/tokenized-strategy/src/",
+    "@periphery/=lib/tokenized-strategy-periphery/src/",
+    "@yearn-vaults/=lib/yearn-vaults-v3/contracts",
+    "vault-periphery/=lib/vault-periphery/",
+    "kontrol-cheatcodes/=halmos/kontrol-shim/",
+]
+# Forge 1.8 links tests dynamically by default, which turns `new` into a deployCode cheatcode
+# halmos 0.3.3 cannot execute.
+dynamic_test_linking = false
