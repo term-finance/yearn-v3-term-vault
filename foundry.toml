@@ -30,6 +30,8 @@ evm_version = 'shanghai'
 src = 'src'
 out = 'out'
 cache_path = 'cache-halmos'
+# The generated proofs live outside src/, where no default-profile forge command finds them.
+test = 'halmos/generated'
 ast = true
 libs = ['lib']
 solc = "0.8.23"

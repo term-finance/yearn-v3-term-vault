@@ -13,7 +13,7 @@
 set -euo pipefail
 
 EXPECTED_PROOFS=14
-GENERATED=src/test/halmos-generated
+GENERATED=halmos/generated
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 selected=0

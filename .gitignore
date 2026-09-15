@@ -10,4 +10,4 @@ out/
 
 # Halmos
 cache-halmos/
-src/test/halmos-generated/
+halmos/generated/
