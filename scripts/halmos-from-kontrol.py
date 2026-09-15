@@ -133,6 +133,9 @@ def main():
     if len(sys.argv) > 1:
         fail("takes no arguments: output always goes to halmos/generated/")
     max_nodes, configured = kontrol_config()
+    unported = sorted(set(configured) - {invariants for invariants, _, _, _ in SUITES})
+    if unported:
+        fail(f"kontrol.toml configures tests for {unported}, which have no Halmos form: add them to SUITES")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for base in BASES:
         generate_base(base, max_nodes)
