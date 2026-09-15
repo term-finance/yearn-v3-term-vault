@@ -20,6 +20,12 @@ selected=0
 
 prove() {  # prove <generated file> <contract> <test left to Kontrol>
   local names count
+  # The test left to Kontrol must still exist; otherwise the proofs selected here are no longer the
+  # set this script was written for, even if their number still matches.
+  if ! grep -qE "function $3\\(" "${GENERATED}/$1"; then
+    echo "$3 is not declared in ${GENERATED}/$1: update the tests left to Kontrol" >&2
+    return 1
+  fi
   names="$(grep -oE 'function test[A-Za-z0-9_]+' "${GENERATED}/$1" | awk '{print $2}' | grep -vx "$3" | paste -sd'|' - || true)"
   count="$(tr '|' '\n' <<< "$names" | grep -c . || true)"
   selected=$((selected + count))
