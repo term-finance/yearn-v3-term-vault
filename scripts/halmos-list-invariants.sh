@@ -8,8 +8,10 @@
 #   0.3.3's vm.etch needs a concrete one.
 #
 # Each contract runs exactly the test functions its generated file declares, minus the one named
-# here. The job fails unless all 14 pass with every path explored, so neither the set left to Kontrol
-# nor the set of proofs can change without this script changing.
+# here, and scripts/halmos-from-kontrol.py fails unless those are the tests kontrol.toml configures. So
+# the proofs run here are always Kontrol's proofs, minus the two named above. Changing which proofs
+# those are means changing kontrol.toml. The job also fails unless exactly 14 are selected and all 14
+# pass with every path explored, and it fails if either name above is no longer declared.
 set -euo pipefail
 
 EXPECTED_PROOFS=14
@@ -30,8 +32,13 @@ prove() {  # prove <generated file> <contract> <test left to Kontrol>
   count="$(tr '|' '\n' <<< "$names" | grep -c . || true)"
   selected=$((selected + count))
   # The pattern matches whether halmos compares a function's name or its full signature.
+  # `--solver-timeout-branching 1s` replaces halmos's 1ms default for deciding whether a branch can be
+  # taken. A query that times out keeps the branch, and a loop condition it could not decide counts
+  # against the loop bound, so with 1ms the paths explored depend on the machine's speed and load. A
+  # longer timeout only lets the solver rule out branches that cannot be taken, so it cannot hide a
+  # counterexample.
   FOUNDRY_PROFILE=halmos halmos --match-contract "^$2$" --match-test "^(${names})(\\(|$)" \
-    --loop 4 --solver-timeout-assertion 5m -st 2>&1 | tee -a "$log"
+    --loop 4 --solver-timeout-assertion 5m --solver-timeout-branching 1s -st 2>&1 | tee -a "$log"
 }
 
 python3 scripts/halmos-from-kontrol.py
@@ -49,7 +56,12 @@ if grep -qE '^\[(FAIL|ERROR|TIMEOUT)\]' <<< "$plain"; then
   echo "a proof failed, errored or timed out" >&2
   status=1
 fi
-if grep -q "not been fully" <<< "$plain"; then
+# Halmos wraps long warnings across lines, and a long test name can push the break into the middle of
+# this phrase, so search the log with its lines joined. The joined log goes into a variable rather than
+# a pipe into grep: with pipefail, grep -q stopping at the first match can end the pipeline with
+# SIGPIPE, and the warning would then read as not found.
+joined="$(tr '\n' ' ' <<< "$plain" | tr -s ' ')"
+if grep -q "not been fully explored" <<< "$joined"; then
   echo "a proof reached the loop bound, so its result is partial" >&2
   status=1
 fi
