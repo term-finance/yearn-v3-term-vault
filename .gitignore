@@ -7,3 +7,7 @@ out/
 /package/
 
 /.yarn/install-state.gz
+
+# Halmos
+cache-halmos/
+src/test/halmos-generated/

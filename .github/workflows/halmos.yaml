@@ -1,0 +1,39 @@
+name: Halmos
+
+# The Kontrol list-invariant proofs (src/test/kontrol/), run by Halmos. scripts/halmos-from-kontrol.py
+# generates their Halmos form: each list is bounded to kontrol.toml's bmc-depth, and built inside each
+# proof because halmos requires a single-path setUp. Kontrol still runs the originals, all 16.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: halmos-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  list-invariants:
+    name: List invariant proofs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      # Pinned rather than nightly: the halmos profile turns off dynamic test linking, which forge 1.8
+      # enables by default and halmos 0.3.3 cannot execute, and a nightly could change that again.
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install halmos==0.3.3
+      # Generates the Halmos form of the proofs, then proves the 14 that Halmos can run. The script
+      # names the two left to Kontrol and fails unless exactly 14 pass with every path explored.
+      - run: scripts/halmos-list-invariants.sh
