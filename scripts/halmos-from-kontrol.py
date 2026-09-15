@@ -47,11 +47,12 @@ def fail(message):
 
 
 def kontrol_config():
-    """The bmc-depth every kontrol.toml profile uses, and the tests each proof contract is configured with."""
+    """The bmc-depth kontrol.toml sets, and the tests each proof contract is configured with."""
     text = KONTROL_CONFIG.read_text()
     depths = {int(d) for d in re.findall(r"^\s*bmc-depth\s*=\s*(\d+)", text, re.M)}
     if len(depths) != 1:
-        fail(f"kontrol.toml must set one bmc-depth for every profile, found {sorted(depths) or 'none'}")
+        fail(f"kontrol.toml must set bmc-depth, and every bmc-depth in it must have the same value; "
+             f"found {sorted(depths) or 'none'}")
     configured = {}
     for contract, test in re.findall(r'"(\w+)\.(test\w+)"', text):
         configured.setdefault(contract, set()).add(test)
