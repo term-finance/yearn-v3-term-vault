@@ -34,6 +34,24 @@ interface ITermVaultEvents {
 
     event DepositUnpaused();
 
+    event RepoTokenBought(
+        address indexed repoToken,
+        address indexed asset,
+        address indexed counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    );
+
+    event RepoTokenSold(
+        address indexed repoToken,
+        address indexed asset,
+        address indexed counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    );
+
     /*
     event StrategyPaused();
 
@@ -90,6 +108,24 @@ interface ITermVaultEvents {
     function emitDepositPaused() external;
 
     function emitDepositUnpaused() external;
+
+    function emitRepoTokenBought(
+        address repoToken,
+        address asset,
+        address counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    ) external;
+
+    function emitRepoTokenSold(
+        address repoToken,
+        address asset,
+        address counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    ) external;
     /*
 
     function emitStrategyPaused() external;

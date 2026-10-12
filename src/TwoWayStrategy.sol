@@ -1183,6 +1183,15 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
 
         // Transfer the proceeds in assets to the sender
         IERC20(asset).safeTransfer(msg.sender, proceeds);
+
+        TERM_VAULT_EVENT_EMITTER.emitRepoTokenSold(
+            repoToken,
+            address(asset),
+            msg.sender,
+            repoTokenAmount,
+            proceeds,
+            discountRate + strategyState.discountRateMarkup
+        );
     }
 
     /**
@@ -1232,9 +1241,19 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
             quotedRate,
             repoTokenAmount
         );
+        require(cost > 0);
 
         IERC20(asset).safeTransferFrom(msg.sender, address(this), cost);
         IERC20(repoToken).safeTransfer(msg.sender, repoTokenAmount);
+
+        TERM_VAULT_EVENT_EMITTER.emitRepoTokenBought(
+            repoToken,
+            address(asset),
+            msg.sender,
+            repoTokenAmount,
+            cost,
+            quotedRate
+        );
 
         _redeemRepoTokens(0);
     }
