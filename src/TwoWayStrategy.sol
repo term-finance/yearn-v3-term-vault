@@ -57,7 +57,6 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
      * @param _asset The address of the asset
      * @param _yearnVault The address of the Yearn vault
      * @param _discountRateAdapter The address of the discount rate adapter
-     * @param _eventEmitter The address of the event emitter
      * @param _governorAddress The address of the governor
      * @param _termController The address of the term controller
      * @param _repoTokenConcentrationLimit The concentration limit for repoTokens
@@ -70,7 +69,6 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         address _asset;
         address _yearnVault;
         address _discountRateAdapter;
-        address _eventEmitter;
         address _governorAddress;
         address _termController;
         uint256 _repoTokenConcentrationLimit;
@@ -110,7 +108,6 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
     // Immutable state variables
-    ITermVaultEvents internal immutable TERM_VAULT_EVENT_EMITTER;
     uint256 internal immutable PURCHASE_TOKEN_PRECISION;
     IERC4626 internal immutable YEARN_VAULT;
 
@@ -141,7 +138,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
      */
     function pauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = true;
-        TERM_VAULT_EVENT_EMITTER.emitDepositPaused();
+        emit ITermVaultEvents.DepositPaused();
     }
 
     /**
@@ -149,7 +146,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
      */
     function unpauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = false;
-        TERM_VAULT_EVENT_EMITTER.emitDepositUnpaused();
+        emit ITermVaultEvents.DepositUnpaused();
     }
 
     /**
@@ -158,7 +155,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function pauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _pause();
         depositLock = true;
-        //TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
+        //emit ITermVaultEvents.StrategyPaused();
     }
 
     /**
@@ -167,7 +164,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function unpauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _unpause();
         depositLock = false;
-        //TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
+        //emit ITermVaultEvents.StrategyUnpaused();
     }
 
     function setPendingGovernor(
@@ -182,7 +179,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         _revokeRole(GOVERNOR_ROLE, strategyState.governorAddress);
         _grantRole(GOVERNOR_ROLE, pendingGovernor);
         strategyState.governorAddress = pendingGovernor;
-        TERM_VAULT_EVENT_EMITTER.emitNewGovernor(pendingGovernor);
+        emit ITermVaultEvents.NewGovernor(pendingGovernor);
         pendingGovernor = address(0);
     }
 
@@ -206,7 +203,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
             currentIteration = repoTokenListData.nodes[currentIteration].next;
         }
         address current = address(strategyState.currTermController);
-        TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
+        emit ITermVaultEvents.TermControllerUpdated(
             current,
             newTermControllerAddr
         );
@@ -229,7 +226,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         require(
             address(newDiscountRateAdapter.currTermController()) != address(0)
         );
-        TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
+        emit ITermVaultEvents.DiscountRateAdapterUpdated(
             address(strategyState.discountRateAdapter),
             newAdapter
         );
@@ -243,7 +240,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function setTimeToMaturityThreshold(
         uint256 newTimeToMaturityThreshold
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(
+        emit ITermVaultEvents.TimeToMaturityThresholdUpdated(
             strategyState.timeToMaturityThreshold,
             newTimeToMaturityThreshold
         );
@@ -258,7 +255,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function setRequiredReserveRatio(
         uint256 newRequiredReserveRatio
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitRequiredReserveRatioUpdated(
+        emit ITermVaultEvents.RequiredReserveRatioUpdated(
             strategyState.requiredReserveRatio,
             newRequiredReserveRatio
         );
@@ -272,7 +269,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function setRepoTokenConcentrationLimit(
         uint256 newRepoTokenConcentrationLimit
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
+        emit ITermVaultEvents.RepoTokenConcentrationLimitUpdated(
             strategyState.repoTokenConcentrationLimit,
             newRepoTokenConcentrationLimit
         );
@@ -287,7 +284,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function setDiscountRateMarkup(
         uint256 newDiscountRateMarkup
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
+        emit ITermVaultEvents.DiscountRateMarkupUpdated(
             strategyState.discountRateMarkup,
             newDiscountRateMarkup
         );
@@ -301,7 +298,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     function setDiscountRateBuyMarkup(
         uint256 newDiscountRateBuyMarkup
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitDiscountRateBuyMarkupUpdated(
+        emit ITermVaultEvents.DiscountRateBuyMarkupUpdated(
             strategyState.discountRateBuyMarkup,
             newDiscountRateBuyMarkup
         );
@@ -317,7 +314,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         address tokenAddr,
         uint256 minCollateralRatio
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(
+        emit ITermVaultEvents.MinCollateralRatioUpdated(
             tokenAddr,
             minCollateralRatio
         );
@@ -328,7 +325,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         address repoToken,
         bool blacklisted
     ) external onlyRole(GOVERNOR_ROLE) {
-        TERM_VAULT_EVENT_EMITTER.emitRepoTokenBlacklistUpdated(
+        emit ITermVaultEvents.RepoTokenBlacklistUpdated(
             repoToken,
             blacklisted
         );
@@ -1184,7 +1181,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         // Transfer the proceeds in assets to the sender
         IERC20(asset).safeTransfer(msg.sender, proceeds);
 
-        TERM_VAULT_EVENT_EMITTER.emitRepoTokenSold(
+        emit ITermVaultEvents.RepoTokenSold(
             repoToken,
             address(asset),
             msg.sender,
@@ -1246,7 +1243,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), cost);
         IERC20(repoToken).safeTransfer(msg.sender, repoTokenAmount);
 
-        TERM_VAULT_EVENT_EMITTER.emitRepoTokenBought(
+        emit ITermVaultEvents.RepoTokenBought(
             repoToken,
             address(asset),
             msg.sender,
@@ -1269,7 +1266,6 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         StrategyParams memory _params
     ) BaseStrategy(_params._asset, _name) {
         YEARN_VAULT = IERC4626(_params._yearnVault);
-        TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_params._eventEmitter);
         PURCHASE_TOKEN_PRECISION = 10 ** ERC20(asset).decimals();
 
         IERC20(_params._asset).safeApprove(
@@ -1280,7 +1276,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
 
         strategyState = StrategyState({
             assetVault: address(YEARN_VAULT),
-            eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
+            eventEmitter: address(0),
             governorAddress: _params._governorAddress,
             prevTermController: ITermController(address(0)),
             currTermController: ITermController(_params._termController),

@@ -1256,7 +1256,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         // Transfer the proceeds in assets to the sender
         IERC20(asset).safeTransfer(msg.sender, proceeds);
 
-        TERM_VAULT_EVENT_EMITTER.emitRepoTokenSold(
+        emit ITermVaultEvents.RepoTokenSold(
             repoToken,
             address(asset),
             msg.sender,

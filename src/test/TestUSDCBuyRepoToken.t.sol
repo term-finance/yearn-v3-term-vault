@@ -21,7 +21,7 @@ contract TestUSDCBuyRepoToken is Setup {
         address asset_,
         address mockYearnVault_,
         address discountRateAdapter_,
-        address termVaultEventEmitter_,
+        address /* termVaultEventEmitter_ */,
         address governor_,
         address termController_
     ) internal override returns (IStrategyInterface) {
@@ -29,7 +29,6 @@ contract TestUSDCBuyRepoToken is Setup {
             asset_,
             mockYearnVault_,
             discountRateAdapter_,
-            termVaultEventEmitter_,
             governor_,
             termController_,
             0.1e18,
@@ -393,7 +392,7 @@ contract TestUSDCBuyRepoToken is Setup {
             repoTokenAmount
         );
 
-        vm.expectEmit(true, true, true, true, address(termVaultEventEmitter));
+        vm.expectEmit(true, true, true, true, address(strategy));
         emit ITermVaultEvents.RepoTokenSold(
             address(repoToken1Week),
             address(mockUSDC),
@@ -419,7 +418,7 @@ contract TestUSDCBuyRepoToken is Setup {
         mockUSDC.mint(buyer, expectedCost);
         vm.startPrank(buyer);
         mockUSDC.approve(address(strategy), type(uint256).max);
-        vm.expectEmit(true, true, true, true, address(termVaultEventEmitter));
+        vm.expectEmit(true, true, true, true, address(strategy));
         emit ITermVaultEvents.RepoTokenBought(
             address(repoToken1Week),
             address(mockUSDC),
