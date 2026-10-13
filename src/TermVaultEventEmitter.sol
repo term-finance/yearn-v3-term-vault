@@ -97,6 +97,42 @@ contract TermVaultEventEmitter is
     function emitDepositUnpaused() external onlyRole(VAULT_CONTRACT) {
         emit DepositUnpaused();
     }
+
+    function emitRepoTokenBought(
+        address repoToken,
+        address asset,
+        address counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    ) external onlyRole(VAULT_CONTRACT) {
+        emit RepoTokenBought(
+            repoToken,
+            asset,
+            counterparty,
+            repoTokenAmount,
+            assetAmount,
+            discountRate
+        );
+    }
+
+    function emitRepoTokenSold(
+        address repoToken,
+        address asset,
+        address counterparty,
+        uint256 repoTokenAmount,
+        uint256 assetAmount,
+        uint256 discountRate
+    ) external onlyRole(VAULT_CONTRACT) {
+        emit RepoTokenSold(
+            repoToken,
+            asset,
+            counterparty,
+            repoTokenAmount,
+            assetAmount,
+            discountRate
+        );
+    }
     /*
     function emitStrategyPaused() external onlyRole(VAULT_CONTRACT) {
         emit StrategyPaused();

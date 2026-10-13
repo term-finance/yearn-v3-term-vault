@@ -4,6 +4,7 @@ import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
+import {ITermVaultEvents} from "../interfaces/term/ITermVaultEvents.sol";
 import {RepoTokenList} from "../RepoTokenList.sol";
 import {TwoWayStrategy} from "../TwoWayStrategy.sol";
 
@@ -20,7 +21,7 @@ contract TestUSDCBuyRepoToken is Setup {
         address asset_,
         address mockYearnVault_,
         address discountRateAdapter_,
-        address termVaultEventEmitter_,
+        address /* termVaultEventEmitter_ */,
         address governor_,
         address termController_
     ) internal override returns (IStrategyInterface) {
@@ -28,7 +29,6 @@ contract TestUSDCBuyRepoToken is Setup {
             asset_,
             mockYearnVault_,
             discountRateAdapter_,
-            termVaultEventEmitter_,
             governor_,
             termController_,
             0.1e18,
@@ -376,6 +376,73 @@ contract TestUSDCBuyRepoToken is Setup {
         );
         termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
         vm.stopPrank();
+    }
+
+    function testSellRepoTokenEmitsTrade() public {
+        uint256 repoTokenAmount = 1e18;
+        mockUSDC.mint(address(strategy), 100e6);
+        repoToken1Week.mint(seller, repoTokenAmount);
+        vm.prank(seller);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+
+        uint256 expectedProceeds = termStrategy.calculateRepoTokenPresentValue(
+            address(repoToken1Week),
+            0.05e18,
+            repoTokenAmount
+        );
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit ITermVaultEvents.RepoTokenSold(
+            address(repoToken1Week),
+            address(mockUSDC),
+            seller,
+            repoTokenAmount,
+            expectedProceeds,
+            0.05e18
+        );
+        vm.prank(seller);
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenAmount);
+    }
+
+    function testBuyRepoTokenEmitsTrade() public {
+        uint256 repoTokenAmount = 1e18;
+        _seedInventory(repoTokenAmount);
+
+        uint256 expectedCost = termStrategy.calculateRepoTokenPresentValue(
+            address(repoToken1Week),
+            0.05e18,
+            repoTokenAmount
+        );
+
+        mockUSDC.mint(buyer, expectedCost);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit ITermVaultEvents.RepoTokenBought(
+            address(repoToken1Week),
+            address(mockUSDC),
+            buyer,
+            repoTokenAmount,
+            expectedCost,
+            0.05e18
+        );
+        termStrategy.buyRepoToken(address(repoToken1Week), repoTokenAmount);
+        vm.stopPrank();
+    }
+
+    function testBuyZeroCostReverts() public {
+        _seedInventory(1e18);
+
+        mockUSDC.mint(buyer, 1);
+        vm.startPrank(buyer);
+        mockUSDC.approve(address(strategy), type(uint256).max);
+        vm.expectRevert();
+        termStrategy.buyRepoToken(address(repoToken1Week), 1);
+        vm.stopPrank();
+
+        assertEq(repoToken1Week.balanceOf(address(strategy)), 1e18);
+        assertEq(mockUSDC.balanceOf(buyer), 1);
     }
 
     function testSetDiscountRateBuyMarkup() public {
