@@ -104,6 +104,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     error ZeroPurchaseTokenAmount();
     error OfferNotFound();
     error InsufficientRepoTokenBalance(uint256 have, uint256 want);
+    error NotPendingGovernor();
 
     bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
@@ -175,7 +176,9 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
     }
 
     function acceptGovernor() external {
-        require(msg.sender == pendingGovernor, "!pendingGovernor");
+        if (msg.sender != pendingGovernor) {
+            revert NotPendingGovernor();
+        }
         _revokeRole(GOVERNOR_ROLE, strategyState.governorAddress);
         _grantRole(GOVERNOR_ROLE, pendingGovernor);
         strategyState.governorAddress = pendingGovernor;
@@ -433,6 +436,103 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
                 _totalAssetValue(_totalLiquidBalance()),
                 0
             );
+    }
+
+    /**
+     * @notice Simulates the weighted time to maturity for a specified repoToken and amount, including the impact on the entire strategy's holdings
+     * @param repoToken The address of the repoToken to be simulated
+     * @param amount The amount of the repoToken to be simulated
+     * @return simulatedWeightedMaturity The simulated weighted time to maturity for the entire strategy
+     * @return simulatedRepoTokenConcentrationRatio The concentration ratio of the repoToken in the strategy (in 1e18 precision)
+     * @return simulatedLiquidityRatio The simulated liquidity ratio after the transaction
+     *
+     * @dev This function simulates the effects of a potential transaction on the strategy's key metrics.
+     * It calculates the new weighted time to maturity and liquidity ratio, considering the specified
+     * repoToken and amount. For existing repoTokens, use address(0) as the repoToken parameter.
+     * The function performs various checks and calculations, including:
+     * - Validating the repoToken (if not address(0))
+     * - Calculating the present value of the transaction
+     * - Estimating the impact on the strategy's liquid balance
+     * - Computing the new weighted maturity and liquidity ratio
+     */
+    function simulateTransaction(
+        address repoToken,
+        uint256 amount
+    )
+        external
+        view
+        returns (
+            uint256 simulatedWeightedMaturity,
+            uint256 simulatedRepoTokenConcentrationRatio,
+            uint256 simulatedLiquidityRatio
+        )
+    {
+        // do not validate if we are simulating with existing repoTokens
+        uint256 liquidBalance = _totalLiquidBalance();
+        uint256 repoTokenAmountInBaseAssetPrecision;
+        uint256 proceeds;
+        if (repoToken != address(0)) {
+            if (!_isTermDeployed(repoToken)) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+            }
+
+            (
+                bool isRepoTokenValid,
+                uint256 redemptionTimestamp
+            ) = repoTokenListData.validateRepoToken(
+                    ITermRepoToken(repoToken),
+                    address(asset)
+                );
+
+            if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+            }
+
+            uint256 discountRate = strategyState
+                .discountRateAdapter
+                .getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircut = strategyState
+                .discountRateAdapter
+                .repoRedemptionHaircut(repoToken);
+            repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+                .getNormalizedRepoTokenAmount(
+                    repoToken,
+                    amount,
+                    PURCHASE_TOKEN_PRECISION,
+                    repoRedemptionHaircut
+                );
+            proceeds = RepoTokenUtils.calculatePresentValue(
+                repoTokenAmountInBaseAssetPrecision,
+                PURCHASE_TOKEN_PRECISION,
+                redemptionTimestamp,
+                discountRate + strategyState.discountRateMarkup
+            );
+        }
+
+        simulatedWeightedMaturity = _calculateWeightedMaturity(
+            repoToken,
+            amount,
+            liquidBalance - proceeds
+        );
+
+        if (repoToken != address(0)) {
+            simulatedRepoTokenConcentrationRatio = _getRepoTokenConcentrationRatio(
+                repoToken,
+                repoTokenAmountInBaseAssetPrecision,
+                _totalAssetValue(liquidBalance),
+                proceeds
+            );
+        }
+
+        uint256 assetValue = _totalAssetValue(liquidBalance);
+
+        if (assetValue == 0) {
+            simulatedLiquidityRatio = 0;
+        } else {
+            simulatedLiquidityRatio =
+                ((liquidBalance - proceeds) * 10 ** 18) /
+                assetValue;
+        }
     }
 
     /**
@@ -1055,14 +1155,7 @@ contract TwoWayStrategy is BaseStrategy, Pausable, AccessControl {
         // Unlock the specified offers
         offerLocker.unlockOffers(offerIds);
 
-        // Update the term auction list data and remove completed offers
-        termAuctionListData.removeCompleted(
-            repoTokenListData,
-            strategyState.discountRateAdapter,
-            address(asset)
-        );
-
-        // Sweep any remaining assets and redeem repoTokens
+        // Remove completed offers, sweep any remaining assets and redeem repoTokens
         _redeemRepoTokens(0);
     }
 
