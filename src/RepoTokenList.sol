@@ -286,7 +286,9 @@ library RepoTokenList {
         if (listData.head == NULL_NODE) return;
 
         address current = listData.head;
-        address prev = current;
+        // Last node still on the list. Removals rewrite this link, so a
+        // run of redemptions cannot write into a node that was just deleted.
+        address prev = NULL_NODE;
         while (current != NULL_NODE) {
             address next;
             if (getRepoTokenMaturity(current) <= block.timestamp) {
@@ -317,20 +319,21 @@ library RepoTokenList {
                 next = _getNext(listData, current);
 
                 if (removeMaturedToken) {
-                    if (current == listData.head) {
+                    if (prev == NULL_NODE) {
                         listData.head = next;
+                    } else {
+                        listData.nodes[prev].next = next;
                     }
-
-                    listData.nodes[prev].next = next;
                     delete listData.nodes[current];
                     delete listData.discountRates[current];
+                } else {
+                    prev = current;
                 }
             } else {
                 /// @dev early exit because list is sorted
                 break;
             }
 
-            prev = current;
             current = next;
         }
     }
